@@ -198,10 +198,12 @@ func (ks *KeySwitcher) DecomposeNTT(levelQ, levelP, alpha int, c2 *ring.Poly, Bu
 		ringQ.NTTLvl(levelQ, polyInvNTT, polyNTT)
 	}
 
-	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
+	beta := int(math.Ceil(float64(levelQ+1) / float64(ks.PCount())))
 
 	for i := 0; i < beta; i++ {
-		ks.DecomposeSingleNTT(levelQ, levelP, alpha, i, polyNTT, polyInvNTT, BuffDecomp[i].Q, BuffDecomp[i].P)
+		if i%(sp+1) == 0 {
+			ks.DecomposeSingleNTT(levelQ, levelP, alpha, i/(sp+1), polyNTT, polyInvNTT, BuffDecomp[i/(sp+1)].Q, BuffDecomp[i/(sp+1)].P)
+		}
 	}
 }
 

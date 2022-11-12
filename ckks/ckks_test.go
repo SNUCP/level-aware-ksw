@@ -54,27 +54,30 @@ type testContext struct {
 func TestCKKS(t *testing.T) {
 
 	var testParams []ParametersLiteral
-	switch {
-	case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
-		testParams = append(testParams, ParametersLiteral{})
-		json.Unmarshal([]byte(*flagParamString), &testParams[0])
-	case *flagLongTest:
-		for _, pls := range [][]ParametersLiteral{
-			DefaultParams,
-			DefaultConjugateInvariantParams,
-			DefaultPostQuantumParams,
-			DefaultPostQuantumConjugateInvariantParams} {
-			testParams = append(testParams, pls...)
+	/*
+		switch {
+		case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
+			testParams = append(testParams, ParametersLiteral{})
+			json.Unmarshal([]byte(*flagParamString), &testParams[0])
+		case *flagLongTest:
+			for _, pls := range [][]ParametersLiteral{
+				DefaultParams,
+				DefaultConjugateInvariantParams,
+				DefaultPostQuantumParams,
+				DefaultPostQuantumConjugateInvariantParams} {
+				testParams = append(testParams, pls...)
+			}
+		case *flagPostQuantum && testing.Short():
+			testParams = append(DefaultPostQuantumParams[:2], DefaultPostQuantumConjugateInvariantParams[:2]...)
+		case *flagPostQuantum:
+			testParams = append(DefaultPostQuantumParams[:4], DefaultPostQuantumConjugateInvariantParams[:4]...)
+		case testing.Short():
+			testParams = append(DefaultParams[:2], DefaultConjugateInvariantParams[:2]...)
+		default:
+			testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
 		}
-	case *flagPostQuantum && testing.Short():
-		testParams = append(DefaultPostQuantumParams[:2], DefaultPostQuantumConjugateInvariantParams[:2]...)
-	case *flagPostQuantum:
-		testParams = append(DefaultPostQuantumParams[:4], DefaultPostQuantumConjugateInvariantParams[:4]...)
-	case testing.Short():
-		testParams = append(DefaultParams[:2], DefaultConjugateInvariantParams[:2]...)
-	default:
-		testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
-	}
+	*/
+	testParams = append(testParams, PN15QP880)
 
 	for _, paramsLiteral := range testParams[:] {
 
@@ -88,27 +91,37 @@ func TestCKKS(t *testing.T) {
 		}
 
 		for _, testSet := range []func(tc *testContext, t *testing.T){
-			testParameters,
-			testEncoder,
-			testEvaluatorAdd,
-			testEvaluatorSub,
-			testEvaluatorRescale,
-			testEvaluatorAddConst,
-			testEvaluatorMultByConst,
-			testEvaluatorMultByConstAndAdd,
+
 			testEvaluatorMul,
-			testEvaluatorMulAndAdd,
 			testFunctions,
-			testDecryptPublic,
 			testEvaluatePoly,
 			testChebyshevInterpolator,
-			testSwitchKeys,
-			testBridge,
 			testAutomorphisms,
 			testInnerSum,
-			testReplicate,
 			testLinearTransform,
-			testMarshaller,
+			/*
+				      testParameters,
+							testEncoder,
+							testEvaluatorAdd,
+							testEvaluatorSub,
+							testEvaluatorRescale,
+							testEvaluatorAddConst,
+							testEvaluatorMultByConst,
+							testEvaluatorMultByConstAndAdd,
+							testEvaluatorMul,
+							testEvaluatorMulAndAdd,
+							testFunctions,
+							testDecryptPublic,
+							testEvaluatePoly,
+							testChebyshevInterpolator,
+							testSwitchKeys,
+							testBridge,
+							testAutomorphisms,
+							testInnerSum,
+							testReplicate,
+							testLinearTransform,
+							testMarshaller,
+			*/
 		} {
 			testSet(tc, t)
 			runtime.GC()
@@ -174,6 +187,8 @@ func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *te
 	if encryptor != nil {
 		ciphertext = encryptor.EncryptNew(plaintext)
 	}
+
+	tc.evaluator.DropLevel(ciphertext, tc.params.PCount())
 
 	return values, plaintext, ciphertext
 }

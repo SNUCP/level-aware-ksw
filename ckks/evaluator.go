@@ -1504,8 +1504,9 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 // RotateHoistedNoModDownNew takes a list of rotations `rotations`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns a map of [2]rlwe.PolyQP,
 // where the rotations are the index of the map, and the elements of the map are the rotated ciphertexts mod Q and mod P, with the message scaled by P.
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
+	sp := eval.SPIndex[level]
 	ringQ := eval.params.RingQ()
-	ringP := eval.params.RingP()
+	ringP := eval.RingPk[sp]
 	cOut = make(map[int][2]rlwe.PolyQP)
 	for _, i := range rotations {
 
@@ -1529,7 +1530,7 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1De
 	buff3P := eval.BuffQP[1].P
 
 	levelQ := level
-	levelP := eval.params.PCount() - 1
+	levelP := eval.LevelPk(levelQ)
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(k)
 
@@ -1542,12 +1543,14 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1De
 
 	eval.KeyswitchHoistedNoModDown(levelQ, c1DecompQP, rtk, buff2Q, buff3Q, buff2P, buff3P)
 
+	sp := eval.SPIndex[levelQ]
 	ringQ := eval.params.RingQ()
+	ringP := eval.RingPk[sp]
 
 	ringQ.PermuteNTTWithIndexLvl(levelQ, buff3Q, index, ct1OutQ)
 	ringQ.PermuteNTTWithIndexLvl(levelP, buff3P, index, ct1OutP)
 
-	ringQ.MulScalarBigintLvl(levelQ, c0, eval.params.RingP().ModulusAtLevel[levelP], buff3Q)
+	ringQ.MulScalarBigintLvl(levelQ, c0, ringP.ModulusAtLevel[levelP], buff3Q)
 	ringQ.AddLvl(levelQ, buff2Q, buff3Q, buff2Q)
 
 	ringQ.PermuteNTTWithIndexLvl(levelQ, buff2Q, index, ct0OutQ)
