@@ -7,7 +7,6 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/utils"
@@ -30,66 +29,20 @@ func ParamsToString(params ckks.Parameters, opname string) string {
 		params.Beta())
 }
 
-func TestBootstrapParametersMarshalling(t *testing.T) {
-	bootstrapParams := DefaultParametersDense[0].BootstrappingParams
-	data, err := bootstrapParams.MarshalBinary()
-	assert.Nil(t, err)
-
-	bootstrapParamsNew := new(Parameters)
-	if err := bootstrapParamsNew.UnmarshalBinary(data); err != nil {
-		assert.Nil(t, err)
-	}
-	assert.Equal(t, bootstrapParams, *bootstrapParamsNew)
-}
-
 func TestBootstrap(t *testing.T) {
-
-	if runtime.GOARCH == "wasm" {
-		t.Skip("skipping bootstrapping tests for GOARCH=wasm")
-	}
-
-	if !*testBootstrapping {
-		t.Skip("skipping bootstrapping tests (add -test-bootstrapping to run the bootstrapping tests)")
-	}
 
 	paramSet := DefaultParametersSparse[0]
 	ckksParams := paramSet.SchemeParams
 	btpParams := paramSet.BootstrappingParams
 
-	// Insecure params for fast testing only
-	if !*flagLongTest {
-		ckksParams.LogN = 13
-		ckksParams.LogSlots = 12
-	}
-
-	LogSlots := ckksParams.LogSlots
-	H := ckksParams.H
 	EphemeralSecretWeight := btpParams.EphemeralSecretWeight
 
-	for _, testSet := range [][]bool{{false, false}, {true, false}, {false, true}, {true, true}} {
-
-		if testSet[0] {
-			ckksParams.H = EphemeralSecretWeight
-			btpParams.EphemeralSecretWeight = 0
-		} else {
-			ckksParams.H = H
-			btpParams.EphemeralSecretWeight = EphemeralSecretWeight
-		}
-
-		if testSet[1] {
-			ckksParams.LogSlots = LogSlots - 1
-		} else {
-			ckksParams.LogSlots = LogSlots
-		}
-
-		params, err := ckks.NewParametersFromLiteral(ckksParams)
-		if err != nil {
-			panic(err)
-		}
-
-		testbootstrap(params, testSet[0], btpParams, t)
-		runtime.GC()
-	}
+	// Test original bootstrpping
+	ckksParams.H = EphemeralSecretWeight
+	btpParams.EphemeralSecretWeight = 0
+	params, _ := ckks.NewParametersFromLiteral(ckksParams)
+	testbootstrap(params, true, btpParams, t)
+	runtime.GC()
 }
 
 func testbootstrap(params ckks.Parameters, original bool, btpParams Parameters, t *testing.T) {

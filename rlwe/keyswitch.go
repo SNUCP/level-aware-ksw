@@ -120,15 +120,18 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 
 // ShallowCopy creates a copy of a KeySwitcher, only reallocating the memory Buff.
 func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
-	return &KeySwitcher{
-		BasisExtender:     ks.BasisExtender,
-		Decomposer:        ks.Decomposer,
-		RingPk:            ks.RingPk,
-		RingQPk:           ks.RingQPk,
-		SPIndex:           ks.SPIndex,
-		PkDivP:            ks.PkDivP,
-		keySwitcherBuffer: newKeySwitcherBuffer(*ks.Parameters),
-	}
+	return NewKeySwitcher(*ks.Parameters)
+	/*
+		return &KeySwitcher{
+			BasisExtender:     ks.BasisExtender,
+			Decomposer:        ks.Decomposer,
+			RingPk:            ks.RingPk,
+			RingQPk:           ks.RingQPk,
+			SPIndex:           ks.SPIndex,
+			PkDivP:            ks.PkDivP,
+			keySwitcherBuffer: newKeySwitcherBuffer(*ks.Parameters),
+		}
+	*/
 }
 
 // ExtendSpecialModulus rearrages polyQP so that it can have additional special modulus

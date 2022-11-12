@@ -296,7 +296,9 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	vec := make(map[int]rlwe.PolyQP)
 
 	dMat := interfaceMapToMapOfInterface(value)
-	levelQ := level
+	//levelQ := level
+
+	levelQ := params.QCount() - 1
 	levelP := params.PCount() - 1
 	for j := range index {
 
