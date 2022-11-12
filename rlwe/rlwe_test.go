@@ -20,7 +20,9 @@ import (
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
-var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
+//var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
+
+var TestParams = []ParametersLiteral{TestPN15QP880}
 
 func testString(params Parameters, opname string) string {
 	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
@@ -58,7 +60,7 @@ func TestRLWE(t *testing.T) {
 			testEncryptor,
 			testDecryptor,
 			testKeySwitcher,
-			testKeySwitchDimension,
+			//testKeySwitchDimension,
 			testMarshaller,
 		} {
 			testSet(kgen, t)
@@ -482,12 +484,15 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
 		t.Run(testString(params, "KeySwitch/Standard/"), func(t *testing.T) {
 			swk := kgen.GenSwitchingKey(sk, skOut)
-			ks.SwitchKeysInPlace(ciphertext.Value[1].Level(), ciphertext.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
-			ringQ.Add(ciphertext.Value[0], ks.BuffQP[1].Q, ciphertext.Value[0])
-			ring.CopyValues(ks.BuffQP[2].Q, ciphertext.Value[1])
-			ringQ.MulCoeffsMontgomeryAndAddLvl(ciphertext.Level(), ciphertext.Value[1], skOut.Value.Q, ciphertext.Value[0])
-			ringQ.InvNTTLvl(ciphertext.Level(), ciphertext.Value[0], ciphertext.Value[0])
-			require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(ciphertext.Level(), ringQ, ciphertext.Value[0]))
+			maxLevel := ciphertext.Level()
+
+			for level := maxLevel; level >= 0; level-- {
+				ks.SwitchKeysInPlace(level, ciphertext.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
+				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
+				ringQ.InvNTTLvl(level, ks.BuffQP[1].Q, ks.BuffQP[1].Q)
+				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q), fmt.Sprintf("Level: %v", level))
+			}
 		})
 	})
 }
