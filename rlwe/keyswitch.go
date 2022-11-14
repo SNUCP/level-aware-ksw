@@ -100,6 +100,7 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 	// TODO: is it optimal?
 	ks.SPIndex = make([]int, qCount)
 	for level := 0; level < qCount; level++ {
+		// ks.SPIndex[level] = 15 // BENCHMARK: Changed Here
 		ks.SPIndex[level] = (qCount - 1 - level) / pCount
 		// if size of special modulus is larger than current modulus, minimize it
 		if (ks.SPIndex[level]+1)*pCount > (level + 1) {
