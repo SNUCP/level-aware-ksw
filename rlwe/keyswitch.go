@@ -100,7 +100,12 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 	ks.SPIndex = make([]int, qCount)
 	for level := 0; level < qCount; level++ {
 		// ks.SPIndex[level] = 15 // BENCHMARK: Changed Here
-		ks.SPIndex[level] = (qCount - 1 - level) / pCount
+		if (qCount - 1 - level) >= pCount {
+			ks.SPIndex[level] = 1
+		} else {
+			ks.SPIndex[level] = 0
+		}
+		//ks.SPIndex[level] = (qCount - 1 - level) / pCount
 	}
 
 	// Generate BasisExtender and Decomposer for each special modulus
@@ -144,6 +149,32 @@ func (ks *KeySwitcher) ExtendSpecialModulus(levelQ int, polyQPIn, polyQPOut Poly
 func (ks *KeySwitcher) LevelPk(levelQ int) int {
 	sp := ks.SPIndex[levelQ]
 	return (sp+1)*ks.PCount() - 1
+}
+
+// PreprocessSwitchKey returns merged switching key
+func (ks *KeySwitcher) PreprocessSwitchKey(levelQ int, swkIn *SwitchingKey) (swkOut *SwitchingKey) {
+
+	qCount := ks.QCount()
+	pCount := ks.PCount()
+
+	sp := ks.SPIndex[levelQ]
+
+	beta := int(math.Ceil(float64(levelQ+1) / float64(ks.PCount())))
+	decompSize := int(math.Ceil(float64(beta) / float64(sp+1)))
+
+	swkOut = new(SwitchingKey)
+	swkOut.Value = make([][2]PolyQP, int(decompSize))
+	for i := 0; i < decompSize; i++ {
+		swkOut.Value[i][0] = ks.RingQP().NewPolyLvl(qCount-1, pCount-1)
+		swkOut.Value[i][1] = ks.RingQP().NewPolyLvl(qCount-1, pCount-1)
+	}
+
+	for i := 0; i < beta; i++ {
+		ks.RingQP().AddLvl(qCount-1, pCount-1, swkIn.Value[i][0], swkOut.Value[i/(sp+1)][0], swkOut.Value[i/(sp+1)][0])
+		ks.RingQP().AddLvl(qCount-1, pCount-1, swkIn.Value[i][1], swkOut.Value[i/(sp+1)][1], swkOut.Value[i/(sp+1)][1])
+	}
+
+	return swkOut
 }
 
 // SwitchKeysInPlace applies the general key-switching procedure of the form [c0 + cx*evakey[0], c1 + cx*evakey[1]]
@@ -258,48 +289,29 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin(ks.PCount()-1) >> 1
 
+	// check key is preprocessed
+	step := 1
+	if len(evakey.Value) < beta {
+		step = (sp + 1)
+	}
+
 	reduce := 0
 	// Key switching with CRT decomposition for the Qi
-	for i := 0; i < beta; i += (sp + 1) {
+	for i := 0; i < beta; i += step {
 
-		ks.DecomposeSingleNTT(levelQ, levelP, levelP+1, i/(sp+1), cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
+		if i%(sp+1) == 0 {
+			ks.DecomposeSingleNTT(levelQ, levelP, levelP+1, i/(sp+1), cxNTT, cxInvNTT, c2QP.Q, c2QP.P)
+		}
 
-		if (sp == 0) || (i+1 == beta) {
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][0], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][1], ks.BuffLAQP[1])
+		ks.ExtendSpecialModulus(levelQ, evakey.Value[i/step][0], ks.BuffLAQP[0])
+		ks.ExtendSpecialModulus(levelQ, evakey.Value[i/step][1], ks.BuffLAQP[1])
 
-			if i == 0 {
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[0], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[1], c2QP, c1QP)
-			} else {
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], c2QP, c1QP)
-			}
-
+		if i == 0 {
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[1], c2QP, c1QP)
 		} else {
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][0], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i+1][0], ks.BuffLAQP[1])
-			ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[1], ks.BuffLAQP[2])
-
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][1], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i+1][1], ks.BuffLAQP[1])
-			ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[1], ks.BuffLAQP[3])
-
-			for j := 2; j < (sp+1) && (i+j < beta); j++ {
-				ks.ExtendSpecialModulus(levelQ, evakey.Value[i+j][0], ks.BuffLAQP[0])
-				ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[2], ks.BuffLAQP[2])
-
-				ks.ExtendSpecialModulus(levelQ, evakey.Value[i+j][1], ks.BuffLAQP[1])
-				ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], ks.BuffLAQP[3], ks.BuffLAQP[3])
-			}
-
-			if i == 0 {
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[2], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[3], c2QP, c1QP)
-			} else {
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[2], c2QP, c0QP)
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[3], c2QP, c1QP)
-			}
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], c2QP, c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], c2QP, c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {
@@ -364,46 +376,25 @@ func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, BuffDecompQP []Poly
 	QiOverF := ks.Parameters.QiOverflowMargin(levelQ) >> 1
 	PiOverF := ks.Parameters.PiOverflowMargin(ks.PCount()-1) >> 1
 
+	// check key is preprocessed
+	step := 1
+	if len(evakey.Value) < beta {
+		step = (sp + 1)
+	}
+
 	// Key switching with CRT decomposition for the Qi
 	reduce := 0
-	for i := 0; i < beta; i += (sp + 1) {
+	for i := 0; i < beta; i += step {
 
-		if (sp == 0) || (i+1 == beta) {
+		ks.ExtendSpecialModulus(levelQ, evakey.Value[i/step][0], ks.BuffLAQP[0])
+		ks.ExtendSpecialModulus(levelQ, evakey.Value[i/step][1], ks.BuffLAQP[1])
 
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][0], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][1], ks.BuffLAQP[1])
-
-			if i == 0 {
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[0], BuffDecompQP[i/(sp+1)], c0QP)
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[1], BuffDecompQP[i/(sp+1)], c1QP)
-			} else {
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], BuffDecompQP[i/(sp+1)], c0QP)
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], BuffDecompQP[i/(sp+1)], c1QP)
-			}
+		if i == 0 {
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[0], BuffDecompQP[i/(sp+1)], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[1], BuffDecompQP[i/(sp+1)], c1QP)
 		} else {
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][0], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i+1][0], ks.BuffLAQP[1])
-			ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[1], ks.BuffLAQP[2])
-
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i][1], ks.BuffLAQP[0])
-			ks.ExtendSpecialModulus(levelQ, evakey.Value[i+1][1], ks.BuffLAQP[1])
-			ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[1], ks.BuffLAQP[3])
-
-			for j := 2; j < (sp+1) && (i+j < beta); j++ {
-				ks.ExtendSpecialModulus(levelQ, evakey.Value[i+j][0], ks.BuffLAQP[0])
-				ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], ks.BuffLAQP[2], ks.BuffLAQP[2])
-
-				ks.ExtendSpecialModulus(levelQ, evakey.Value[i+j][1], ks.BuffLAQP[1])
-				ringQP.AddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], ks.BuffLAQP[3], ks.BuffLAQP[3])
-			}
-
-			if i == 0 {
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[2], BuffDecompQP[i/(sp+1)], c0QP)
-				ringQP.MulCoeffsMontgomeryConstantLvl(levelQ, levelP, ks.BuffLAQP[3], BuffDecompQP[i/(sp+1)], c1QP)
-			} else {
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[2], BuffDecompQP[i/(sp+1)], c0QP)
-				ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[3], BuffDecompQP[i/(sp+1)], c1QP)
-			}
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[0], BuffDecompQP[i/(sp+1)], c0QP)
+			ringQP.MulCoeffsMontgomeryConstantAndAddNoModLvl(levelQ, levelP, ks.BuffLAQP[1], BuffDecompQP[i/(sp+1)], c1QP)
 		}
 
 		if reduce%QiOverF == QiOverF-1 {

@@ -36,10 +36,6 @@ func testString(params Parameters, opname string) string {
 
 func TestRLWE(t *testing.T) {
 	defaultParams := TestParams // the default test runs for ring degree N=2^12, 2^13, 2^14, 2^15
-	if testing.Short() {
-		defaultParams = TestParams[:2] // the short test suite runs for ring degree N=2^12, 2^13
-	}
-
 	if *flagParamString != "" {
 		var jsonParams ParametersLiteral
 		json.Unmarshal([]byte(*flagParamString), &jsonParams)
@@ -486,7 +482,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 			swk := kgen.GenSwitchingKey(sk, skOut)
 			maxLevel := ciphertext.Level()
 
-			for level := maxLevel; level >= 0; level-- {
+			for level := maxLevel; level > 0; level-- {
 				ks.SwitchKeysInPlace(level, ciphertext.Value[1], swk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
 				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
 				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
@@ -494,6 +490,22 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q), fmt.Sprintf("Level: %v", level))
 			}
 		})
+
+		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
+		t.Run(testString(params, "KeySwitch/Preprocessed/"), func(t *testing.T) {
+			swk := kgen.GenSwitchingKey(sk, skOut)
+			maxLevel := ciphertext.Level()
+
+			for level := maxLevel; level > 0; level-- {
+				pSwk := ks.PreprocessSwitchKey(level, swk)
+				ks.SwitchKeysInPlace(level, ciphertext.Value[1], pSwk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
+				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
+				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
+				ringQ.InvNTTLvl(level, ks.BuffQP[1].Q, ks.BuffQP[1].Q)
+				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q), fmt.Sprintf("Level: %v", level))
+			}
+		})
+
 	})
 }
 
