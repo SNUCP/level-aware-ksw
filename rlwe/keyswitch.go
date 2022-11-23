@@ -100,12 +100,7 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 	ks.SPIndex = make([]int, qCount)
 	for level := 0; level < qCount; level++ {
 		// ks.SPIndex[level] = 15 // BENCHMARK: Changed Here
-		if (qCount - 1 - level) >= pCount {
-			ks.SPIndex[level] = 1
-		} else {
-			ks.SPIndex[level] = 0
-		}
-		//ks.SPIndex[level] = (qCount - 1 - level) / pCount
+		ks.SPIndex[level] = (qCount - 1 - level) / pCount
 	}
 
 	// Generate BasisExtender and Decomposer for each special modulus
@@ -152,14 +147,14 @@ func (ks *KeySwitcher) LevelPk(levelQ int) int {
 }
 
 // PreprocessSwitchKey returns merged switching key
-func (ks *KeySwitcher) PreprocessSwitchKey(levelQ int, swkIn *SwitchingKey) (swkOut *SwitchingKey) {
+func (ks *KeySwitcher) PreprocessSwitchKey(sp int, swkIn *SwitchingKey) (swkOut *SwitchingKey) {
 
 	qCount := ks.QCount()
 	pCount := ks.PCount()
 
-	sp := ks.SPIndex[levelQ]
+	levelQ := qCount - 1 - sp*pCount
 
-	beta := int(math.Ceil(float64(levelQ+1) / float64(ks.PCount())))
+	beta := int(math.Ceil(float64(levelQ+1) / float64(pCount)))
 	decompSize := int(math.Ceil(float64(beta) / float64(sp+1)))
 
 	swkOut = new(SwitchingKey)
@@ -291,7 +286,7 @@ func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, eva
 
 	// check key is preprocessed
 	step := 1
-	if len(evakey.Value) < beta {
+	if len(evakey.Value) < ks.Beta() {
 		step = (sp + 1)
 	}
 

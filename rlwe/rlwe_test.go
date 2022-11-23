@@ -497,7 +497,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 			maxLevel := ciphertext.Level()
 
 			for level := maxLevel; level > 0; level-- {
-				pSwk := ks.PreprocessSwitchKey(level, swk)
+				pSwk := ks.PreprocessSwitchKey(ks.SPIndex[level], swk)
 				ks.SwitchKeysInPlace(level, ciphertext.Value[1], pSwk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
 				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
 				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
