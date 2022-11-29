@@ -9,28 +9,35 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var ciphertextSwitched *ckks.Ciphertext // For preventing optimizations
-
 func BenchmarkKeySwitch(b *testing.B) {
-	params, _ := ckks.NewParametersFromLiteral(ckks.PN16QP1761)
+
+	level := 27
+	pCount := 1
+
+	paramsLitetal := ckks.PN16QP1761
+	paramsLitetal.P = paramsLitetal.P[:pCount]
+
+	params, _ := ckks.NewParametersFromLiteral(paramsLitetal)
 	prng, _ := utils.NewPRNG()
 
 	kgen := ckks.NewKeyGenerator(params)
 	sk := kgen.GenSecretKey()
 	skOut := kgen.GenSecretKey()
 	swk := kgen.GenSwitchingKey(sk, skOut)
-
 	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 
-	for level := params.MaxLevel(); level > 0; level-- {
-		b.Run(fmt.Sprintf("level-%v", level), func(b *testing.B) {
-			ciphertext := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
-			ciphertextSwitched = ciphertext.CopyNew()
-			b.ResetTimer()
+	// adjust spindex here
+	ksw := evaluator.GetKeySwitcher()
+	ksw.SPIndex[level] = 3
 
-			for i := 0; i < b.N; i++ {
-				evaluator.SwitchKeys(ciphertext, swk, ciphertextSwitched)
-			}
-		})
-	}
+	swk = ksw.PreprocessSwitchKey(ksw.SPIndex[level], swk)
+
+	ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+	ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+
+	b.Run(fmt.Sprintf("level-%v-%v", level, ksw.LevelPk(level)), func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			evaluator.SwitchKeys(ctIn, swk, ctOut)
+		}
+	})
 }
