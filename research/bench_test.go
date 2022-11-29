@@ -9,35 +9,97 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-func BenchmarkKeySwitch(b *testing.B) {
+func BenchmarkKeySwitchPreProcess(b *testing.B) {
+	testLevels := []int{31, 24, 16}
+	pCounts := []int{1, 2, 4}
 
-	level := 27
-	pCount := 1
+	for _, level := range testLevels {
+		for _, pCount := range pCounts {
+			SPIndexes := make([]int, 0)
+			for _, v := range []int{1, 2, 4, 8} {
+				index := v/pCount - 1
+				if (index+1)*pCount != v {
+					continue
+				}
 
-	paramsLitetal := ckks.PN16QP1761
-	paramsLitetal.P = paramsLitetal.P[:pCount]
+				SPIndexes = append(SPIndexes, index)
+			}
 
-	params, _ := ckks.NewParametersFromLiteral(paramsLitetal)
-	prng, _ := utils.NewPRNG()
+			for _, SPIndex := range SPIndexes {
+				testName := fmt.Sprintf("BenchmarkKeySwitchPreProcess-Level-%v/pCount-%v/SPIndex-%d", level, pCount, SPIndex)
 
-	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
-	skOut := kgen.GenSecretKey()
-	swk := kgen.GenSwitchingKey(sk, skOut)
-	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
+				paramsLiteral := ckks.PN16QP1761
+				paramsLiteral.P = paramsLiteral.P[:pCount]
 
-	// adjust spindex here
-	ksw := evaluator.GetKeySwitcher()
-	ksw.SPIndex[level] = 3
+				params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+				prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
 
-	swk = ksw.PreprocessSwitchKey(ksw.SPIndex[level], swk)
+				kgen := ckks.NewKeyGenerator(params)
+				sk := kgen.GenSecretKey()
+				skOut := kgen.GenSecretKey()
+				swk := kgen.GenSwitchingKey(sk, skOut)
+				evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 
-	ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
-	ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+				ksw := evaluator.GetKeySwitcher()
+				ksw.SPIndex[level] = SPIndex
 
-	b.Run(fmt.Sprintf("level-%v-%v", level, ksw.LevelPk(level)), func(b *testing.B) {
-		for i := 0; i < b.N; i++ {
-			evaluator.SwitchKeys(ctIn, swk, ctOut)
+				swk = ksw.PreprocessSwitchKey(ksw.SPIndex[level], swk)
+
+				ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+				ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+
+				b.Run(testName, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						evaluator.SwitchKeys(ctIn, swk, ctOut)
+					}
+				})
+			}
 		}
-	})
+	}
+}
+
+func BenchmarkKeySwitch(b *testing.B) {
+	testLevels := []int{31, 24, 16}
+	pCounts := []int{1, 2, 4}
+
+	for _, level := range testLevels {
+		for _, pCount := range pCounts {
+			SPIndexes := make([]int, 0)
+			for _, v := range []int{1, 2, 4, 8} {
+				index := v/pCount - 1
+				if (index+1)*pCount != v {
+					continue
+				}
+				SPIndexes = append(SPIndexes, index)
+			}
+
+			for _, SPIndex := range SPIndexes {
+				testName := fmt.Sprintf("BenchmarkKeySwitch-Level-%v/pCount-%v/SPIndex-%d", level, pCount, SPIndex)
+
+				paramsLiteral := ckks.PN16QP1761
+				paramsLiteral.P = paramsLiteral.P[:pCount]
+
+				params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+				prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
+
+				kgen := ckks.NewKeyGenerator(params)
+				sk := kgen.GenSecretKey()
+				skOut := kgen.GenSecretKey()
+				swk := kgen.GenSwitchingKey(sk, skOut)
+				evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
+
+				ksw := evaluator.GetKeySwitcher()
+				ksw.SPIndex[level] = SPIndex
+
+				ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+				ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+
+				b.Run(testName, func(b *testing.B) {
+					for i := 0; i < b.N; i++ {
+						evaluator.SwitchKeys(ctIn, swk, ctOut)
+					}
+				})
+			}
+		}
+	}
 }
