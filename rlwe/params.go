@@ -18,7 +18,7 @@ const MaxLogN = 17
 const MinLogN = 4
 
 // MaxModuliCount is the largest supported number of moduli in the RNS representation.
-const MaxModuliCount = 34
+const MaxModuliCount = 48
 
 // MaxModuliSize is the largest bit-length supported for the moduli in the RNS representation.
 const MaxModuliSize = 60
@@ -369,7 +369,8 @@ func (p Parameters) GaloisElementsForRowInnerSum() (galEls []uint64) {
 }
 
 // InverseGaloisElement takes a galois element and returns the galois element
-//  corresponding to the inverse automorphism
+//
+//	corresponding to the inverse automorphism
 func (p Parameters) InverseGaloisElement(galEl uint64) uint64 {
 	return ring.ModExp(galEl, p.ringQ.NthRoot-1, p.ringQ.NthRoot)
 }
