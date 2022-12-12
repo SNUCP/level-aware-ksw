@@ -76,29 +76,21 @@ var (
 		RingType:     ring.Standard,
 	}
 	// PN16QP1761 is a default parameter set for logN=16 and logQP = 1761
+
 	PN16QP1761 = ParametersLiteral{
-		LogN:     16,
-		LogSlots: 15,
-		Q: []uint64{
-			// 44 x 40
-			0xfffff4c0001, 0xfffff3a0001, 0xfffff300001, 0xffffee00001,
-			0xffffea60001, 0xffffe940001, 0xffffe920001, 0xffffe7c0001,
-			0xffffe520001, 0xffffe340001, 0xffffe260001, 0xffffdfc0001,
-			0xffffdda0001, 0xffffdd40001, 0xffffdc60001, 0xffffd960001,
-			0xffffd800001, 0xffffcc60001, 0xffffc9c0001, 0xffffc780001,
-			0xffffc400001, 0xffffc3c0001, 0xffffc2e0001, 0xffffc240001,
-			0xffffbc80001, 0xffffbbe0001, 0xffffba00001, 0xffffb7a0001,
-			0xffffb5c0001, 0xffffb4c0001, 0xffffb220001, 0xffffb1a0001,
-			0xffffade0001, 0xffffada0001, 0xffffaaa0001, 0xffffa8c0001,
-			0xffffa600001, 0xffff9c60001, 0xffff9ac0001, 0xffff98a0001,
-		},
-		P: []uint64{
-			// 44 x 4
-			0xfffffc60001, 0xfffffac0001, 0xfffff960001, 0xfffff880001,
-		},
-		DefaultScale: 1 << 44,
-		Sigma:        rlwe.DefaultSigma,
-		RingType:     ring.Standard,
+		LogN: 16,
+		Q: []uint64{0x80000000080001, 0x2000000a0001, 0x2000000e0001, 0x1fffffc20001, // 55 + 33 x 45
+			0x200000440001, 0x200000500001, 0x200000620001, 0x1fffff980001,
+			0x2000006a0001, 0x1fffff7e0001, 0x200000860001, 0x200000a60001,
+			0x200000aa0001, 0x200000b20001, 0x200000c80001, 0x1fffff360001,
+			0x200000e20001, 0x1fffff060001, 0x200000fe0001, 0x1ffffede0001,
+			0x1ffffeca0001, 0x1ffffeb40001, 0x200001520001, 0x1ffffe760001,
+			0x2000019a0001, 0x1ffffe640001, 0x200001a00001, 0x1ffffe520001,
+			0x200001e80001, 0x1ffffe0c0001, 0x1ffffdee0001, 0x200002480001,
+			0x1ffffdb60001, 0x200002560001},
+		P:            []uint64{0x80000000440001, 0x7fffffffba0001, 0x80000000500001, 0x7fffffffaa0001}, // 4 x 55
+		LogSlots:     15,
+		DefaultScale: 1 << 45,
 	}
 
 	// PN12QP109CI is a default parameter set for logN=12 and logQP=109

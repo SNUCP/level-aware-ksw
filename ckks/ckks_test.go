@@ -54,29 +54,6 @@ type testContext struct {
 func TestCKKS(t *testing.T) {
 
 	var testParams []ParametersLiteral
-	/*
-		switch {
-		case *flagParamString != "": // the custom test suite reads the parameters from the -params flag
-			testParams = append(testParams, ParametersLiteral{})
-			json.Unmarshal([]byte(*flagParamString), &testParams[0])
-		case *flagLongTest:
-			for _, pls := range [][]ParametersLiteral{
-				DefaultParams,
-				DefaultConjugateInvariantParams,
-				DefaultPostQuantumParams,
-				DefaultPostQuantumConjugateInvariantParams} {
-				testParams = append(testParams, pls...)
-			}
-		case *flagPostQuantum && testing.Short():
-			testParams = append(DefaultPostQuantumParams[:2], DefaultPostQuantumConjugateInvariantParams[:2]...)
-		case *flagPostQuantum:
-			testParams = append(DefaultPostQuantumParams[:4], DefaultPostQuantumConjugateInvariantParams[:4]...)
-		case testing.Short():
-			testParams = append(DefaultParams[:2], DefaultConjugateInvariantParams[:2]...)
-		default:
-			testParams = append(DefaultParams[:4], DefaultConjugateInvariantParams[:4]...)
-		}
-	*/
 	testParams = append(testParams, PN15QP880)
 
 	for _, paramsLiteral := range testParams[:] {
@@ -179,8 +156,6 @@ func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *te
 	default:
 		panic("invalid ring type")
 	}
-
-	values[0] = complex(0.607538, 0)
 
 	plaintext = tc.encoder.EncodeNew(values, tc.params.MaxLevel(), tc.params.DefaultScale(), logSlots)
 
