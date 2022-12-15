@@ -11,8 +11,8 @@ import (
 )
 
 var qpCount = 40
-var pCounts = []int{1, 2, 4} // k
-var levels = []int{31, 23, 15, 7}
+var pCounts = []int{1}                           // k
+var levels = []int{31, 27, 23, 19, 15, 11, 7, 3} // Change this to: 35, 31, 27, 23, 19
 var paramsLiteral = ckks.ParametersLiteral{
 	LogN:     16,
 	LogSlots: 15,
@@ -72,7 +72,7 @@ func BenchmarkKeySwitch(b *testing.B) {
 				if level+sp*pCount+1 > qCount {
 					continue
 				}
-				testName := fmt.Sprintf("L-%v/l-%v/k-%v/m-%d", qCount, level+1, pCount, sp+1)
+				testName := fmt.Sprintf("L-%v/l-%v/r-%v(k-%v/m-%v)", qCount, level+1, (sp+1)*pCount, pCount, sp+1)
 
 				ksw.SPIndex[level] = sp
 

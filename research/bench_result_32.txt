@@ -1,0 +1,33 @@
+goos: linux
+goarch: amd64
+pkg: github.com/tuneinsight/lattigo/v3/research
+cpu: Intel(R) Xeon(R) Platinum 8268 CPU @ 2.90GHz
+BenchmarkKeySwitch/L-39/l-32/r-1(k-1/m-1)-48         	      50	1323402944 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-1(k-1/m-1)-48         	      50	1266482906 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-1(k-1/m-1)-48         	      50	1270682907 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-2(k-1/m-2)-48         	      50	1047498921 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-2(k-1/m-2)-48         	      50	1005997158 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-2(k-1/m-2)-48         	      50	1116568558 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-4(k-1/m-4)-48         	      50	 679499606 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-4(k-1/m-4)-48         	      50	 809795252 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-4(k-1/m-4)-48         	      50	 807120352 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-8(k-1/m-8)-48         	      50	 610343067 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-8(k-1/m-8)-48         	      50	 571352161 ns/op
+BenchmarkKeySwitch/L-39/l-32/r-8(k-1/m-8)-48         	      50	 555691959 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-2(k-2/m-1)-48         	      50	1106107597 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-2(k-2/m-1)-48         	      50	 971030458 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-2(k-2/m-1)-48         	      50	1096240791 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-4(k-2/m-2)-48         	      50	 700194125 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-4(k-2/m-2)-48         	      50	 702310755 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-4(k-2/m-2)-48         	      50	 710817744 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-8(k-2/m-4)-48         	      50	 568659064 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-8(k-2/m-4)-48         	      50	 601353528 ns/op
+BenchmarkKeySwitch/L-38/l-32/r-8(k-2/m-4)-48         	      50	 603096936 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-4(k-4/m-1)-48         	      50	 710384022 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-4(k-4/m-1)-48         	      50	 719397207 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-4(k-4/m-1)-48         	      50	 702594315 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-8(k-4/m-2)-48         	      50	 668182454 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-8(k-4/m-2)-48         	      50	 547555567 ns/op
+BenchmarkKeySwitch/L-36/l-32/r-8(k-4/m-2)-48         	      50	 664569329 ns/op
+PASS
+ok  	github.com/tuneinsight/lattigo/v3/research	1156.489s
