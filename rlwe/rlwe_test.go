@@ -10,11 +10,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-
 	"github.com/tuneinsight/lattigo/v3/ring"
-	"github.com/tuneinsight/lattigo/v3/utils"
+
+	"github.com/stretchr/testify/require"
 )
 
 var flagParamString = flag.String("params", "", "specify the test cryptographic parameters as a JSON string. Overrides -short and -long.")
@@ -56,8 +54,6 @@ func TestRLWE(t *testing.T) {
 			testEncryptor,
 			testDecryptor,
 			testKeySwitcher,
-			//testKeySwitchDimension,
-			testMarshaller,
 		} {
 			testSet(kgen, t)
 			runtime.GC()
@@ -207,20 +203,20 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		levelQ, levelP := params.QCount()-1, params.PCount()-1
 
 		// Generates Decomp([-asIn + w*P*sOut + e, a])
-		swk := NewSwitchingKey(params, params.QCount()-1, params.PCount()-1)
+		swk := NewSwitchingKey(params, levelQ, levelP)
 		kgen.(*keyGenerator).genSwitchingKey(skIn.Value.Q, skOut.Value, swk)
 
 		// Decrypts
 		// [-asIn + w*P*sOut + e, a] + [asIn]
-		for j := range swk.Value {
-			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[j][1], skOut.Value, swk.Value[j][0])
+		for j := range swk.Value[levelP] {
+			ringQP.MulCoeffsMontgomeryAndAddLvl(levelQ, levelP, swk.Value[levelP][j][1], skOut.Value, swk.Value[levelP][j][0])
 		}
 
 		// Sums all basis together (equivalent to multiplying with CRT decomposition of 1)
 		// sum([1]_w * [w*P*sOut + e]) = P*sOut + sum(e)
-		for j := range swk.Value {
+		for j := range swk.Value[levelP] {
 			if j > 0 {
-				ringQP.AddLvl(levelQ, levelP, swk.Value[0][0], swk.Value[j][0], swk.Value[0][0])
+				ringQP.AddLvl(levelQ, levelP, swk.Value[levelP][0][0], swk.Value[levelP][j][0], swk.Value[levelP][0][0])
 			}
 		}
 
@@ -228,17 +224,17 @@ func testSwitchKeyGen(kgen KeyGenerator, t *testing.T) {
 		ringQ.MulScalarBigint(skIn.Value.Q, ringP.ModulusAtLevel[levelP], skIn.Value.Q)
 
 		// P*s^i + sum(e) - P*s^i = sum(e)
-		ringQ.Sub(swk.Value[0][0].Q, skIn.Value.Q, swk.Value[0][0].Q)
+		ringQ.Sub(swk.Value[levelP][0][0].Q, skIn.Value.Q, swk.Value[levelP][0][0].Q)
 
 		// Checks that the error is below the bound
 		// Worst error bound is N * floor(6*sigma) * #Keys
 
-		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
-		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[0][0], swk.Value[0][0])
+		ringQP.InvNTTLvl(levelQ, levelP, swk.Value[levelP][0][0], swk.Value[levelP][0][0])
+		ringQP.InvMFormLvl(levelQ, levelP, swk.Value[levelP][0][0], swk.Value[levelP][0][0])
 
-		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value)))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[0][0].Q))
-		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[0][0].P))
+		log2Bound := bits.Len64(uint64(math.Floor(DefaultSigma*6)) * uint64(params.N()*len(swk.Value[levelP])))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelQ, ringQ, swk.Value[levelP][0][0].Q))
+		require.GreaterOrEqual(t, log2Bound, log2OfInnerSum(levelP, ringP, swk.Value[levelP][0][0].P))
 
 	})
 }
@@ -487,22 +483,8 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
 				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
 				ringQ.InvNTTLvl(level, ks.BuffQP[1].Q, ks.BuffQP[1].Q)
-				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q), fmt.Sprintf("Level: %v", level))
-			}
-		})
-
-		// Test that Dec(KS(Enc(ct, sk), skOut), skOut) has a small norm
-		t.Run(testString(params, "KeySwitch/Preprocessed/"), func(t *testing.T) {
-			swk := kgen.GenSwitchingKey(sk, skOut)
-			maxLevel := ciphertext.Level()
-
-			for level := maxLevel; level > 0; level-- {
-				pSwk := ks.PreprocessSwitchKey(ks.SPIndex[level], swk)
-				ks.SwitchKeysInPlace(level, ciphertext.Value[1], pSwk, ks.BuffQP[1].Q, ks.BuffQP[2].Q)
-				ringQ.AddLvl(level, ciphertext.Value[0], ks.BuffQP[1].Q, ks.BuffQP[1].Q)
-				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
-				ringQ.InvNTTLvl(level, ks.BuffQP[1].Q, ks.BuffQP[1].Q)
-				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q), fmt.Sprintf("Level: %v", level))
+				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q),
+					fmt.Sprintf("Level: %v LevelSP: %v", level, ks.LevelSP(level)))
 			}
 		})
 
@@ -595,147 +577,5 @@ func testKeySwitchDimension(kgen KeyGenerator, t *testing.T) {
 
 			require.GreaterOrEqual(t, 10+paramsSmallDim.LogN(), log2OfInnerSum(ctLargeDim.Level(), ringQLargeDim, ctLargeDim.Value[0]))
 		})
-	})
-}
-
-func testMarshaller(kgen KeyGenerator, t *testing.T) {
-
-	params := kgen.(*keyGenerator).params
-
-	sk, pk := kgen.GenKeyPair()
-
-	t.Run("Marshaller/Parameters/Binary", func(t *testing.T) {
-		bytes, err := params.MarshalBinary()
-		assert.Nil(t, err)
-		var p Parameters
-		err = p.UnmarshalBinary(bytes)
-		assert.Nil(t, err)
-		assert.Equal(t, params, p)
-		assert.Equal(t, params.RingQ(), p.RingQ())
-	})
-
-	t.Run("Marshaller/Parameters/JSON", func(t *testing.T) {
-		// checks that parameters can be marshalled without error
-		data, err := json.Marshal(params)
-		assert.Nil(t, err)
-		assert.NotNil(t, data)
-
-		// checks that Parameters can be unmarshalled without error
-		var rlweParams Parameters
-		err = json.Unmarshal(data, &rlweParams)
-		assert.Nil(t, err)
-		assert.True(t, params.Equals(rlweParams))
-	})
-
-	t.Run(testString(params, "Marshaller/Ciphertext"), func(t *testing.T) {
-
-		prng, _ := utils.NewPRNG()
-
-		for degree := 0; degree < 4; degree++ {
-			t.Run(fmt.Sprintf("degree=%d", degree), func(t *testing.T) {
-				ciphertextWant := NewCiphertextRandom(prng, params, degree, params.MaxLevel())
-
-				marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-				require.NoError(t, err)
-
-				ciphertextTest := new(Ciphertext)
-				require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-				require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-				require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-
-				for i := range ciphertextWant.Value {
-					require.True(t, params.RingQ().EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
-				}
-			})
-		}
-	})
-
-	t.Run(testString(params, "Marshaller/Sk"), func(t *testing.T) {
-
-		marshalledSk, err := sk.MarshalBinary()
-		require.NoError(t, err)
-
-		skTest := new(SecretKey)
-		err = skTest.UnmarshalBinary(marshalledSk)
-		require.NoError(t, err)
-
-		require.True(t, sk.Value.Equals(skTest.Value))
-	})
-
-	t.Run(testString(params, "Marshaller/Pk"), func(t *testing.T) {
-
-		marshalledPk, err := pk.MarshalBinary()
-		require.NoError(t, err)
-
-		pkTest := new(PublicKey)
-		err = pkTest.UnmarshalBinary(marshalledPk)
-		require.NoError(t, err)
-
-		require.True(t, pk.Equals(pkTest))
-	})
-
-	t.Run(testString(params, "Marshaller/EvaluationKey"), func(t *testing.T) {
-
-		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
-		}
-
-		evalKey := kgen.GenRelinearizationKey(sk, 3)
-		data, err := evalKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resEvalKey := new(RelinearizationKey)
-		err = resEvalKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.True(t, evalKey.Equals(resEvalKey))
-	})
-
-	t.Run(testString(params, "Marshaller/SwitchingKey"), func(t *testing.T) {
-
-		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
-		}
-
-		skOut := kgen.GenSecretKey()
-
-		switchingKey := kgen.GenSwitchingKey(sk, skOut)
-		data, err := switchingKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resSwitchingKey := new(SwitchingKey)
-		err = resSwitchingKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		require.True(t, switchingKey.Equals(resSwitchingKey))
-	})
-
-	t.Run(testString(params, "Marshaller/RotationKey"), func(t *testing.T) {
-
-		if params.PCount() == 0 {
-			t.Skip("method is unsuported when params.PCount() == 0")
-		}
-
-		rots := []int{1, -1, 63, -63}
-		galEls := []uint64{}
-		if params.RingType() == ring.Standard {
-			galEls = append(galEls, params.GaloisElementForRowRotation())
-		}
-
-		for _, n := range rots {
-			galEls = append(galEls, params.GaloisElementForColumnRotationBy(n))
-		}
-
-		rotationKey := kgen.GenRotationKeys(galEls, sk)
-
-		data, err := rotationKey.MarshalBinary()
-		require.NoError(t, err)
-
-		resRotationKey := new(RotationKeySet)
-		err = resRotationKey.UnmarshalBinary(data)
-		require.NoError(t, err)
-
-		rotationKey.Equals(resRotationKey)
 	})
 }

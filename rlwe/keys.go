@@ -16,7 +16,7 @@ type PublicKey struct {
 
 // SwitchingKey is a type for generic RLWE public switching keys.
 type SwitchingKey struct {
-	Value [][2]PolyQP
+	Value map[int][][2]PolyQP
 }
 
 // RelinearizationKey is a type for generic RLWE public relinearization keys. It stores a slice with a
@@ -79,12 +79,25 @@ func (rtks *RotationKeySet) GetRotationKey(galoisEl uint64) (*SwitchingKey, bool
 
 // NewSwitchingKey returns a new public switching key with pre-allocated zero-value
 func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
-	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 	swk := new(SwitchingKey)
-	swk.Value = make([][2]PolyQP, int(decompSize))
-	for i := 0; i < decompSize; i++ {
-		swk.Value[i][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
-		swk.Value[i][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
+	swk.Value = make(map[int][][2]PolyQP)
+
+	// restrict max levelP by the half of levelQ
+	for i := 1; i <= params.Beta()/2; i++ {
+		if levelQ < (levelP+1)*(i-1)-1 {
+			panic("levelQ is too small than special modulus")
+		}
+
+		levelSP := (levelP+1)*i - 1
+		qCount := levelQ + 1 - (levelP+1)*(i-1)
+
+		decompSize := int(math.Ceil(float64(qCount) / float64(levelSP+1)))
+
+		swk.Value[levelSP] = make([][2]PolyQP, decompSize)
+		for j := 0; j < decompSize; j++ {
+			swk.Value[levelSP][j][0] = params.RingQP().NewPolyLvl(levelQ, levelP)
+			swk.Value[levelSP][j][1] = params.RingQP().NewPolyLvl(levelQ, levelP)
+		}
 	}
 
 	return swk
@@ -163,8 +176,10 @@ func (swk *SwitchingKey) Equals(other *SwitchingKey) bool {
 		return false
 	}
 	for i := range swk.Value {
-		if !((&PublicKey{Value: swk.Value[i]}).Equals(&PublicKey{Value: other.Value[i]})) {
-			return false
+		for j := range swk.Value[i] {
+			if !((&PublicKey{Value: swk.Value[i][j]}).Equals(&PublicKey{Value: other.Value[i][j]})) {
+				return false
+			}
 		}
 	}
 	return true
@@ -175,10 +190,15 @@ func (swk *SwitchingKey) CopyNew() *SwitchingKey {
 	if swk == nil || len(swk.Value) == 0 {
 		return nil
 	}
-	swkb := &SwitchingKey{Value: make([][2]PolyQP, len(swk.Value))}
-	for i, el := range swk.Value {
-		swkb.Value[i] = [2]PolyQP{el[0].CopyNew(), el[1].CopyNew()}
+	swkb := &SwitchingKey{Value: make(map[int][][2]PolyQP)}
+
+	for i := range swk.Value {
+		swkb.Value[i] = make([][2]PolyQP, len(swk.Value[i]))
+		for j := range swk.Value[i] {
+			swkb.Value[i][j] = [2]PolyQP{swk.Value[i][j][0].CopyNew(), swk.Value[i][j][1].CopyNew()}
+		}
 	}
+
 	return swkb
 }
 

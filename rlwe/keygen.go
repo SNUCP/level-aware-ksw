@@ -326,31 +326,31 @@ func (keygen *keyGenerator) GenSwitchingKey(skInput, skOutput *SecretKey) (swk *
 }
 
 func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *SwitchingKey) {
+	params := keygen.params
+	ringQ := params.RingQ()
+	ringQP := params.RingQP()
 
-	ringQ := keygen.params.RingQ()
-	ringQP := keygen.params.RingQP()
-
-	levelQ := len(swk.Value[0][0].Q.Coeffs) - 1
-	levelP := len(swk.Value[0][0].P.Coeffs) - 1
+	levelQ := params.QCount() - 1
+	levelP := params.PCount() - 1
 
 	// Computes P * skIn
 	ringQ.MulScalarBigintLvl(levelQ, skIn, ringQP.RingP.ModulusAtLevel[levelP], keygen.buffQ)
 
 	alpha := levelP + 1
-	beta := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
+	decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelP+1)))
 
+	//generate base SwitchingKey (levelSP = levelP)
 	var index int
-	for i := 0; i < beta; i++ {
-
+	for i := 0; i < decompSize; i++ {
 		// e
-		keygen.gaussianSamplerQ.ReadLvl(levelQ, swk.Value[i][0].Q)
-		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[i][0].Q, levelP, nil, swk.Value[i][0].P)
-		ringQP.NTTLazyLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
-		ringQP.MFormLvl(levelQ, levelP, swk.Value[i][0], swk.Value[i][0])
+		keygen.gaussianSamplerQ.ReadLvl(levelQ, swk.Value[levelP][i][0].Q)
+		ringQP.ExtendBasisSmallNormAndCenter(swk.Value[levelP][i][0].Q, levelP, nil, swk.Value[levelP][i][0].P)
+		ringQP.NTTLazyLvl(levelQ, levelP, swk.Value[levelP][i][0], swk.Value[levelP][i][0])
+		ringQP.MFormLvl(levelQ, levelP, swk.Value[levelP][i][0], swk.Value[levelP][i][0])
 
 		// a (since a is uniform, we consider we already sample it in the NTT and Montgomery domain)
-		keygen.uniformSamplerQ.ReadLvl(levelQ, swk.Value[i][1].Q)
-		keygen.uniformSamplerP.ReadLvl(levelP, swk.Value[i][1].P)
+		keygen.uniformSamplerQ.ReadLvl(levelQ, swk.Value[levelP][i][1].Q)
+		keygen.uniformSamplerP.ReadLvl(levelP, swk.Value[levelP][i][1].P)
 
 		// e + (skIn * P) * (q_star * q_tild) mod QP
 		//
@@ -370,14 +370,30 @@ func (keygen *keyGenerator) genSwitchingKey(skIn *ring.Poly, skOut PolyQP, swk *
 
 			qi := ringQ.Modulus[index]
 			p0tmp := keygen.buffQ.Coeffs[index]
-			p1tmp := swk.Value[i][0].Q.Coeffs[index]
+			p1tmp := swk.Value[levelP][i][0].Q.Coeffs[index]
 
 			for w := 0; w < ringQ.N; w++ {
 				p1tmp[w] = ring.CRed(p1tmp[w]+p0tmp[w], qi)
 			}
 		}
-
 		// (skIn * P) * (q_star * q_tild) - a * skOut + e mod QP
-		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[i][1], skOut, swk.Value[i][0])
+		ringQP.MulCoeffsMontgomeryAndSubLvl(levelQ, levelP, swk.Value[levelP][i][1], skOut, swk.Value[levelP][i][0])
+	}
+
+	//preprocessing key-switching key for various special modulus
+
+	for levelSP := range swk.Value {
+		if levelSP == levelP {
+			continue
+		}
+
+		qCount := levelQ + levelP + 2 - (levelSP + 1)
+		beta := int(math.Ceil(float64(qCount) / float64(levelP+1)))
+		k := levelSP / (levelP + 1)
+
+		for i := 0; i < beta; i++ {
+			ringQP.AddLvl(levelQ, levelP, swk.Value[levelP][i][0], swk.Value[levelSP][i/(k+1)][0], swk.Value[levelSP][i/(k+1)][0])
+			ringQP.AddLvl(levelQ, levelP, swk.Value[levelP][i][1], swk.Value[levelSP][i/(k+1)][1], swk.Value[levelSP][i/(k+1)][1])
+		}
 	}
 }
