@@ -1,7 +1,6 @@
 package ckks
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
@@ -339,42 +338,6 @@ func (p *PolynomialBasis) genPower(n int, lazy bool, scale float64, eval Evaluat
 				eval.Sub(p.Value[n], p.Value[c], p.Value[n])
 			}
 		}
-	}
-	return
-}
-
-// MarshalBinary encodes the target on a slice of bytes.
-func (p *PolynomialBasis) MarshalBinary() (data []byte, err error) {
-	data = make([]byte, 16)
-	binary.LittleEndian.PutUint64(data[0:8], uint64(len(p.Value)))
-	binary.LittleEndian.PutUint64(data[8:16], uint64(p.Value[1].GetDataLen(true)))
-	for key, ct := range p.Value {
-		keyBytes := make([]byte, 8)
-		binary.LittleEndian.PutUint64(keyBytes, uint64(key))
-		data = append(data, keyBytes...)
-		ctBytes, err := ct.MarshalBinary()
-		if err != nil {
-			return []byte{}, err
-		}
-		data = append(data, ctBytes...)
-	}
-	return
-}
-
-// UnmarshalBinary decodes a slice of bytes on the target.
-func (p *PolynomialBasis) UnmarshalBinary(data []byte) (err error) {
-	p.Value = make(map[int]*Ciphertext)
-	nbct := int(binary.LittleEndian.Uint64(data[0:8]))
-	dtLen := int(binary.LittleEndian.Uint64(data[8:16]))
-	ptr := 16
-	for i := 0; i < nbct; i++ {
-		idx := int(binary.LittleEndian.Uint64(data[ptr : ptr+8]))
-		ptr += 8
-		p.Value[idx] = new(Ciphertext)
-		if err = p.Value[idx].UnmarshalBinary(data[ptr : ptr+dtLen]); err != nil {
-			return
-		}
-		ptr += dtLen
 	}
 	return
 }

@@ -163,7 +163,7 @@ func newTestVectors(tc *testContext, encryptor Encryptor, a, b complex128, t *te
 		ciphertext = encryptor.EncryptNew(plaintext)
 	}
 
-	tc.evaluator.DropLevel(ciphertext, tc.params.PCount())
+	tc.evaluator.DropLevel(ciphertext, 2*tc.params.PCount())
 
 	return values, plaintext, ciphertext
 }
@@ -1488,41 +1488,4 @@ func testMarshaller(testctx *testContext, t *testing.T) {
 		assert.Equal(t, 192, paramsWithCustomSecrets.HammingWeight())
 	})
 
-	t.Run("Marshaller/Ciphertext/", func(t *testing.T) {
-		t.Run(GetTestName(testctx.params, "EndToEnd"), func(t *testing.T) {
-
-			ciphertextWant := NewCiphertextRandom(testctx.prng, testctx.params, 2, testctx.params.MaxLevel(), testctx.params.DefaultScale())
-
-			marshalledCiphertext, err := ciphertextWant.MarshalBinary()
-			require.NoError(t, err)
-
-			ciphertextTest := new(Ciphertext)
-			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-			require.Equal(t, ciphertextWant.Degree(), ciphertextTest.Degree())
-			require.Equal(t, ciphertextWant.Level(), ciphertextTest.Level())
-			require.Equal(t, ciphertextWant.Scale, ciphertextTest.Scale)
-
-			for i := range ciphertextWant.Value {
-				require.True(t, testctx.ringQ.EqualLvl(ciphertextWant.Level(), ciphertextWant.Value[i], ciphertextTest.Value[i]))
-			}
-		})
-
-		t.Run(GetTestName(testctx.params, "Minimal"), func(t *testing.T) {
-
-			ciphertext := NewCiphertextRandom(testctx.prng, testctx.params, 0, testctx.params.MaxLevel(), testctx.params.DefaultScale())
-
-			marshalledCiphertext, err := ciphertext.MarshalBinary()
-			require.NoError(t, err)
-
-			ciphertextTest := new(Ciphertext)
-			require.Error(t, ciphertextTest.UnmarshalBinary(nil))
-			require.NoError(t, ciphertextTest.UnmarshalBinary(marshalledCiphertext))
-
-			require.Equal(t, ciphertext.Degree(), 0)
-			require.Equal(t, ciphertext.Level(), testctx.params.MaxLevel())
-			require.Equal(t, ciphertext.Scale, testctx.params.DefaultScale())
-			require.Equal(t, len(ciphertext.Value), 1)
-		})
-	})
 }
