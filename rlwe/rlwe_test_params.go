@@ -31,8 +31,10 @@ var (
 		Q: []uint64{0x7ffffffffe70001, 0x7ffffffffe10001, 0x7ffffffffcc0001, // 59 + 59 + 59 bits
 			0x400000000270001, 0x400000000350001, 0x400000000360001, // 58 + 58 + 58 bits
 			0x3ffffffffc10001, 0x3ffffffffbe0001, 0x3ffffffffbd0001, // 58 + 58 + 58 bits
-			0x4000000004d0001, 0x400000000570001, 0x400000000660001}, // 58 + 58 + 58 bits
-		P:     []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001}, // 60 + 60 + 60 bits
+			0x4000000004d0001, 0x400000000570001, 0x400000000660001,
+		}, // 58 + 58 + 58 bits
+		P: []uint64{0xffffffffffc0001, 0x10000000001d0001, 0x10000000006e0001},
+		// 60 + 60 + 60 bits
 		Sigma: DefaultSigma,
 	}
 	// TestPN16QP240 is a set of default parameters with logN=16 and logQP=240

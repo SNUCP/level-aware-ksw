@@ -10,28 +10,31 @@ import (
 	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
-var qpCount = 40
-var pCounts = []int{4}                     // k
-var levels = []int{32 - 1, 28 - 1, 24 - 1} // Change this to: 35, 31, 27, 23, 19
+var qpCount = 39
+var pCount = 3
+var levels = []int{33 - 1, 30 - 1, 27 - 1, 24 - 1} //
+var levelSPs = []int{3 - 1, 6 - 1, 9 - 1, 12 - 1}
 var paramsLiteral = ckks.ParametersLiteral{
 	LogN:     16,
 	LogSlots: 15,
 	Q: []uint64{
 		// 44 x 40
-		0xfffff4c0001, 0xfffff3a0001, 0xfffff300001, 0xffffee00001,
-		0xffffea60001, 0xffffe940001, 0xffffe920001, 0xffffe7c0001,
-		0xffffe520001, 0xffffe340001, 0xffffe260001, 0xffffdfc0001,
-		0xffffdda0001, 0xffffdd40001, 0xffffdc60001, 0xffffd960001,
-		0xffffd800001, 0xffffcc60001, 0xffffc9c0001, 0xffffc780001,
-		0xffffc400001, 0xffffc3c0001, 0xffffc2e0001, 0xffffc240001,
-		0xffffbc80001, 0xffffbbe0001, 0xffffba00001, 0xffffb7a0001,
-		0xffffb5c0001, 0xffffb4c0001, 0xffffb220001, 0xffffb1a0001,
-		0xffffade0001, 0xffffada0001, 0xffffaaa0001, 0xffffa8c0001,
-		0xffffa600001, 0xffff9c60001, 0xffff9ac0001, 0xffff98a0001,
+		0xffff480001, 0xffff420001, 0xffff340001, 0xfffeb60001,
+		0xfffeb00001, 0xfffe9e0001, 0xfffe860001, 0xfffe680001,
+		0xfffe620001, 0xfffe4a0001, 0xfffe2c0001, 0xfffe100001,
+		0xfffd800001, 0xfffd720001, 0xfffd6e0001, 0xfffd5a0001,
+
+		0xfffd3e0001, 0xfffd260001, 0xfffd080001, 0xfffcfa0001,
+		0xfffcf60001, 0xfffcc60001, 0xfffca00001, 0xfffc940001,
+		0xfffc880001, 0xfffc6a0001, 0xfffc640001, 0xfffc600001,
+		0xfffc540001, 0xfffc360001, 0xfffc1e0001, 0xfffbf40001,
+
+		0xfffbdc0001, 0xfffbb80001, 0xfffba60001, 0xfffba00001,
+		0xfffb5e0001, 0xfffb340001, 0xfffb1a0001, 0xfffb0e0001,
 	},
 	P: []uint64{
 		// 44 x 4
-		0xfffffc60001, 0xfffffac0001, 0xfffff960001, 0xfffff880001,
+		0xffff8a0001, 0xffff820001, 0xffff780001, 0xffff580001,
 	},
 	DefaultScale: 1 << 44,
 	Sigma:        rlwe.DefaultSigma,
@@ -43,38 +46,36 @@ func BenchmarkKeySwitch(b *testing.B) {
 	defaultP := make([]uint64, len(paramsLiteral.P))
 	copy(defaultP, paramsLiteral.P)
 
-	for _, pCount := range pCounts {
-		qCount := qpCount - pCount
-		paramsLiteral.Q = paramsLiteral.Q[:qCount]
-		paramsLiteral.P = paramsLiteral.P[:pCount]
+	qCount := qpCount - pCount
+	paramsLiteral.Q = paramsLiteral.Q[:qCount]
+	paramsLiteral.P = paramsLiteral.P[:pCount]
 
-		params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
-		prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
+	params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+	prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
 
-		kgen := ckks.NewKeyGenerator(params)
-		sk := kgen.GenSecretKey()
-		skOut := kgen.GenSecretKey()
-		swk := kgen.GenSwitchingKey(sk, skOut)
-		evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
-		ksw := evaluator.GetKeySwitcher()
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	skOut := kgen.GenSecretKey()
+	swk := kgen.GenSwitchingKey(sk, skOut)
+	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
+	ksw := evaluator.GetKeySwitcher()
 
-		for _, level := range levels {
-			for _, levelSP := range []int{4 - 1, 8 - 1, 12 - 1} {
-				if level+levelSP+2 > qpCount {
-					continue
-				}
-				ksw.LevelSP[level] = levelSP
-				testName := fmt.Sprintf("L-%v/l-%v/r-%v/SP-%v", qCount, level+1, pCount, levelSP+1)
-
-				ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
-				ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
-
-				b.Run(testName, func(b *testing.B) {
-					for i := 0; i < b.N; i++ {
-						evaluator.SwitchKeys(ctIn, swk, ctOut)
-					}
-				})
+	for _, level := range levels {
+		for _, levelSP := range levelSPs {
+			if level+levelSP+2 > qpCount {
+				continue
 			}
+			ksw.LevelSP[level] = levelSP
+			testName := fmt.Sprintf("L-%v/l-%v/r-%v/SP-%v", qCount, level+1, pCount, levelSP+1)
+
+			ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+			ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+
+			b.Run(testName, func(b *testing.B) {
+				for i := 0; i < b.N; i++ {
+					evaluator.SwitchKeys(ctIn, swk, ctOut)
+				}
+			})
 		}
 	}
 

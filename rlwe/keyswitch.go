@@ -57,16 +57,16 @@ func newKeySwitcherBuffer(params Parameters) *keySwitcherBuffer {
 // NewKeySwitcher creates a new KeySwitcher.
 func NewKeySwitcher(params Parameters) *KeySwitcher {
 
-	if params.QCount()%params.PCount() != 0 {
-		panic("NewKeySwitcher: pcount does not divide qcount, cannot apply level-aware gadget")
-	}
-
 	ks := new(KeySwitcher)
 	ks.Parameters = &params
 
 	// Generate necessary rings for level aware gadget decomposition
 	pCount := params.PCount()
 	qCount := params.QCount()
+
+	if qCount%pCount != 0 {
+		panic("pCount should divide qCount!!")
+	}
 
 	ks.RingPk = make([]*ring.Ring, params.Beta())
 	ks.RingQPk = make([]RingQP, params.Beta())
