@@ -14,7 +14,7 @@ type KeySwitcher struct {
 	Decomposer    []*ring.Decomposer
 	RingPk        []*ring.Ring
 	RingQPk       []RingQP
-	levelSP       map[int]int
+	LevelSP       map[int]int
 	PkDivP        []*ring.Poly
 }
 
@@ -104,7 +104,7 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 
 	// Generate proper special modulus index for each level
 	// TODO: is it optimal?
-	ks.levelSP = make(map[int]int)
+	ks.LevelSP = make(map[int]int)
 	for levelQ := 0; levelQ < qCount; levelQ++ {
 		min_cost := 987654321
 
@@ -119,7 +119,7 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 
 			if cost < min_cost {
 				min_cost = cost
-				ks.levelSP[levelQ] = levelSP
+				ks.LevelSP[levelQ] = levelSP
 			}
 		}
 	}
@@ -132,13 +132,15 @@ func (ks *KeySwitcher) ShallowCopy() *KeySwitcher {
 	return NewKeySwitcher(*ks.Parameters)
 }
 
+/*
 func (ks *KeySwitcher) LevelSP(levelQ int) int {
-	return ks.levelSP[levelQ]
+	return ks.LevelSP[levelQ]
 }
+*/
 
 // ExtendSpecialModulus rearrages polyQP so that it can have additional special modulus
 func (ks *KeySwitcher) ExtendSpecialModulus(levelQ int, polyQPIn, polyQPOut PolyQP) {
-	levelSP := ks.levelSP[levelQ]
+	levelSP := ks.LevelSP[levelQ]
 	pCount := ks.PCount()
 	qCount := ks.QCount()
 
@@ -160,7 +162,7 @@ func (ks *KeySwitcher) ExtendSpecialModulus(levelQ int, polyQPIn, polyQPOut Poly
 func (ks *KeySwitcher) SwitchKeysInPlace(levelQ int, cx *ring.Poly, evakey *SwitchingKey, p0, p1 *ring.Poly) {
 	ks.SwitchKeysInPlaceNoModDown(levelQ, cx, evakey, p0, ks.BuffQP[1].P, p1, ks.BuffQP[2].P)
 
-	levelSP := ks.LevelSP(levelQ)
+	levelSP := ks.LevelSP[levelQ]
 	k := levelSP / ks.PCount()
 
 	if cx.IsNTT {
@@ -239,7 +241,7 @@ func (ks *KeySwitcher) DecomposeSingleNTT(levelQ, levelSP, alpha, beta int, c2NT
 // Expects the flag IsNTT of cx to correctly reflect the domain of cx.
 func (ks *KeySwitcher) SwitchKeysInPlaceNoModDown(levelQ int, cx *ring.Poly, evakey *SwitchingKey, c0Q, c0P, c1Q, c1P *ring.Poly) {
 
-	levelSP := ks.LevelSP(levelQ)
+	levelSP := ks.LevelSP[levelQ]
 	k := levelSP / ks.PCount()
 
 	ringQ := ks.RingQ()
@@ -314,7 +316,7 @@ func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, BuffDecompQP []PolyQP, evake
 
 	ks.KeyswitchHoistedNoModDown(levelQ, BuffDecompQP, evakey, c0Q, c1Q, c0P, c1P)
 
-	levelSP := ks.LevelSP(levelQ)
+	levelSP := ks.LevelSP[levelQ]
 	k := levelSP / ks.PCount()
 
 	// Computes c0Q = c0Q/c0P and c1Q = c1Q/c1P
@@ -328,7 +330,7 @@ func (ks *KeySwitcher) KeyswitchHoisted(levelQ int, BuffDecompQP []PolyQP, evake
 // Buff3 = dot(BuffDecompQ||BuffDecompP * evakey[1]) mod QP
 func (ks *KeySwitcher) KeyswitchHoistedNoModDown(levelQ int, BuffDecompQP []PolyQP, evakey *SwitchingKey, c0Q, c1Q, c0P, c1P *ring.Poly) {
 
-	levelSP := ks.LevelSP(levelQ)
+	levelSP := ks.LevelSP[levelQ]
 	k := levelSP / ks.PCount()
 
 	ringQ := ks.RingQ()

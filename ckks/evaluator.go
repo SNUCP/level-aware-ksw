@@ -1504,7 +1504,7 @@ func (eval *evaluator) permuteNTT(ct0 *Ciphertext, galEl uint64, ctOut *Cipherte
 // RotateHoistedNoModDownNew takes a list of rotations `rotations`, a ciphertext (`c0`, RNSDecomp(c1) = `c1DecompQP`) and returns a map of [2]rlwe.PolyQP,
 // where the rotations are the index of the map, and the elements of the map are the rotated ciphertexts mod Q and mod P, with the message scaled by P.
 func (eval *evaluator) RotateHoistedNoModDownNew(level int, rotations []int, c0 *ring.Poly, c1DecompQP []rlwe.PolyQP) (cOut map[int][2]rlwe.PolyQP) {
-	levelSP := eval.LevelSP(level)
+	levelSP := eval.LevelSP[level]
 
 	ringQ := eval.params.RingQ()
 	ringPk := eval.RingPk[levelSP/eval.PCount()]
@@ -1532,7 +1532,7 @@ func (eval *evaluator) PermuteNTTHoistedNoModDown(level int, c0 *ring.Poly, c1De
 	buff3P := eval.BuffQP[1].P
 
 	levelQ := level
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 
 	galEl := eval.params.GaloisElementForColumnRotationBy(k)
 

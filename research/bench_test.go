@@ -11,8 +11,8 @@ import (
 )
 
 var qpCount = 40
-var pCounts = []int{1}                           // k
-var levels = []int{31, 27, 23, 19, 15, 11, 7, 3} // Change this to: 35, 31, 27, 23, 19
+var pCounts = []int{4}                     // k
+var levels = []int{32 - 1, 28 - 1, 24 - 1} // Change this to: 35, 31, 27, 23, 19
 var paramsLiteral = ckks.ParametersLiteral{
 	LogN:     16,
 	LogSlots: 15,
@@ -45,16 +45,8 @@ func BenchmarkKeySwitch(b *testing.B) {
 
 	for _, pCount := range pCounts {
 		qCount := qpCount - pCount
-		// Generate SPIndexes, Choose the fastest one later
-		spIndexes := make([]int, 0)
-		for _, v := range []int{1, 2, 4, 8} {
-			if v%pCount == 0 {
-				spIndexes = append(spIndexes, v/pCount-1)
-			}
-		}
-
 		paramsLiteral.Q = paramsLiteral.Q[:qCount]
-		paramsLiteral.P = defaultP[:pCount]
+		paramsLiteral.P = paramsLiteral.P[:pCount]
 
 		params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
 		prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
@@ -64,26 +56,22 @@ func BenchmarkKeySwitch(b *testing.B) {
 		skOut := kgen.GenSecretKey()
 		swk := kgen.GenSwitchingKey(sk, skOut)
 		evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
-
 		ksw := evaluator.GetKeySwitcher()
 
 		for _, level := range levels {
-			for _, sp := range spIndexes {
-				if level+sp*pCount+1 > qCount {
+			for _, levelSP := range []int{4 - 1, 8 - 1, 12 - 1} {
+				if level+levelSP+2 > qpCount {
 					continue
 				}
-				testName := fmt.Sprintf("L-%v/l-%v/r-%v(k-%v/m-%v)", qCount, level+1, (sp+1)*pCount, pCount, sp+1)
-
-				ksw.SPIndex[level] = sp
-
-				la_swk := ksw.PreprocessSwitchKey(ksw.SPIndex[level], swk)
+				ksw.LevelSP[level] = levelSP
+				testName := fmt.Sprintf("L-%v/l-%v/r-%v/SP-%v", qCount, level+1, pCount, levelSP+1)
 
 				ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
 				ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
 
 				b.Run(testName, func(b *testing.B) {
 					for i := 0; i < b.N; i++ {
-						evaluator.SwitchKeys(ctIn, la_swk, ctOut)
+						evaluator.SwitchKeys(ctIn, swk, ctOut)
 					}
 				})
 			}

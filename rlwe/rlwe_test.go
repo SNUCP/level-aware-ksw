@@ -484,7 +484,7 @@ func testKeySwitcher(kgen KeyGenerator, t *testing.T) {
 				ringQ.MulCoeffsMontgomeryAndAddLvl(level, ks.BuffQP[2].Q, skOut.Value.Q, ks.BuffQP[1].Q)
 				ringQ.InvNTTLvl(level, ks.BuffQP[1].Q, ks.BuffQP[1].Q)
 				require.GreaterOrEqual(t, 11+params.LogN(), log2OfInnerSum(level, ringQ, ks.BuffQP[1].Q),
-					fmt.Sprintf("Level: %v LevelSP: %v", level, ks.LevelSP(level)))
+					fmt.Sprintf("Level: %v LevelSP: %v", level, ks.LevelSP[level]))
 			}
 		})
 

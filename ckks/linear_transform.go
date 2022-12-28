@@ -87,7 +87,7 @@ func (eval *evaluator) RotateHoistedNew(ctIn *Ciphertext, rotations []int) (ctOu
 // It is much faster than sequential calls to Rotate.
 func (eval *evaluator) RotateHoisted(ctIn *Ciphertext, rotations []int, ctOut map[int]*Ciphertext) {
 	levelQ := ctIn.Level()
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 	eval.DecomposeNTT(levelQ, levelSP, levelSP+1, ctIn.Value[1], eval.BuffDecompQP)
 	for _, i := range rotations {
 		ctOut[i].Value[0].Coeffs = ctOut[i].Value[0].Coeffs[:levelQ+1]
@@ -437,7 +437,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		levelSP := eval.LevelSP(minLevel)
+		levelSP := eval.LevelSP[minLevel]
 		eval.DecomposeNTT(minLevel, levelSP, levelSP+1, ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
@@ -453,7 +453,7 @@ func (eval *evaluator) LinearTransformNew(ctIn *Ciphertext, linearTransform inte
 	case LinearTransform:
 
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		levelSP := eval.LevelSP(minLevel)
+		levelSP := eval.LevelSP[minLevel]
 		eval.DecomposeNTT(minLevel, levelSP, levelSP+1, ctIn.Value[1], eval.BuffDecompQP)
 
 		ctOut = []*Ciphertext{NewCiphertext(eval.params, 1, minLevel, ctIn.Scale)}
@@ -482,7 +482,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 		}
 
 		minLevel := utils.MinInt(maxLevel, ctIn.Level())
-		levelSP := eval.LevelSP(minLevel)
+		levelSP := eval.LevelSP[minLevel]
 		eval.DecomposeNTT(minLevel, levelSP, levelSP+1, ctIn.Value[1], eval.BuffDecompQP)
 
 		for i, LT := range LTs {
@@ -495,7 +495,7 @@ func (eval *evaluator) LinearTransform(ctIn *Ciphertext, linearTransform interfa
 
 	case LinearTransform:
 		minLevel := utils.MinInt(LTs.Level, ctIn.Level())
-		levelSP := eval.LevelSP(minLevel)
+		levelSP := eval.LevelSP[minLevel]
 		eval.DecomposeNTT(minLevel, levelSP, levelSP+1, ctIn.Value[1], eval.BuffDecompQP)
 		if LTs.N1 == 0 {
 			eval.MultiplyByDiagMatrix(ctIn, LTs, eval.BuffDecompQP, ctOut[0])
@@ -545,7 +545,7 @@ func (eval *evaluator) Average(ctIn *Ciphertext, logBatchSize int, ctOut *Cipher
 func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	levelQ := ctIn.Level()
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 
 	ringQ := eval.params.RingQ()
 	ringQPk := eval.RingQPk[levelSP/eval.PCount()]
@@ -656,7 +656,7 @@ func (eval *evaluator) InnerSumLog(ctIn *Ciphertext, batchSize, n int, ctOut *Ci
 func (eval *evaluator) InnerSum(ctIn *Ciphertext, batchSize, n int, ctOut *Ciphertext) {
 
 	levelQ := ctIn.Level()
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 
 	ringQ := eval.params.RingQ()
 	ringPk := eval.RingPk[levelSP/eval.PCount()]
@@ -780,7 +780,7 @@ func (eval *evaluator) Replicate(ctIn *Ciphertext, batchSize, n int, ctOut *Ciph
 func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 
 	ringQ := eval.params.RingQ()
 	ringPk := eval.RingPk[levelSP/eval.PCount()]
@@ -888,7 +888,7 @@ func (eval *evaluator) MultiplyByDiagMatrix(ctIn *Ciphertext, matrix LinearTrans
 func (eval *evaluator) MultiplyByDiagMatrixBSGS(ctIn *Ciphertext, matrix LinearTransform, BuffDecompQP []rlwe.PolyQP, ctOut *Ciphertext) {
 
 	levelQ := utils.MinInt(ctOut.Level(), utils.MinInt(ctIn.Level(), matrix.Level))
-	levelSP := eval.LevelSP(levelQ)
+	levelSP := eval.LevelSP[levelQ]
 
 	ringQ := eval.params.RingQ()
 	ringPk := eval.RingPk[levelSP/eval.PCount()]
