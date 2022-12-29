@@ -20,7 +20,31 @@ var flagParamString = flag.String("params", "", "specify the test cryptographic 
 // TestParams is a set of test parameters for the correctness of the rlwe pacakge.
 //var TestParams = []ParametersLiteral{TestPN12QP109, TestPN13QP218, TestPN14QP438, TestPN15QP880, TestPN16QP240, TestPN17QP360}
 
-var TestParams = []ParametersLiteral{TestPN15QP880}
+var rlweTestParam = ParametersLiteral{
+	LogN: 16,
+	Q: []uint64{
+		// 44 x 40
+		0xffff480001, 0xffff420001, 0xffff340001, 0xfffeb60001,
+		0xfffeb00001, 0xfffe9e0001, 0xfffe860001, 0xfffe680001,
+		0xfffe620001, 0xfffe4a0001, 0xfffe2c0001, 0xfffe100001,
+		0xfffd800001, 0xfffd720001, 0xfffd6e0001, 0xfffd5a0001,
+
+		0xfffd3e0001, 0xfffd260001, 0xfffd080001, 0xfffcfa0001,
+		0xfffcf60001, 0xfffcc60001, 0xfffca00001, 0xfffc940001,
+		0xfffc880001, 0xfffc6a0001, 0xfffc640001, 0xfffc600001,
+		0xfffc540001, 0xfffc360001, 0xfffc1e0001, 0xfffbf40001,
+
+		0xfffbdc0001, 0xfffbb80001, 0xfffba60001, 0xfffba00001,
+		0xfffb5e0001, 0xfffb340001, 0xfffb1a0001, //0xfffb0e0001,
+	},
+	P: []uint64{
+		// 44 x 4
+		0xffff8a0001, 0xffff820001, 0xffff780001, //0xffff580001,
+	},
+	RingType: ring.Standard,
+}
+
+var TestParams = []ParametersLiteral{rlweTestParam}
 
 func testString(params Parameters, opname string) string {
 	return fmt.Sprintf("%s/logN=%d/logQ=%d/logP=%d/#Qi=%d/#Pi=%d",
