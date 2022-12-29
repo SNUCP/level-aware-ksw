@@ -7,15 +7,21 @@ import (
 	"github.com/tuneinsight/lattigo/v3/ckks"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
-	"github.com/tuneinsight/lattigo/v3/utils"
 )
 
 var qpCount = 40
 var pCount = 1
+
+/*
 var levels = []int{
 	39 - 1, 38 - 1, 37 - 1, 36 - 1,
 	32 - 1, 28 - 1, 24 - 1, 20 - 1,
 	16 - 1, 12 - 1, 8 - 1, 4 - 1,
+}
+*/
+
+var levels = []int{
+	38 - 1, 39 - 1,
 }
 
 var paramsLiteral = ckks.ParametersLiteral{
@@ -54,12 +60,13 @@ func BenchmarkKeySwitch(b *testing.B) {
 	paramsLiteral.Q = paramsLiteral.Q[:qCount]
 	paramsLiteral.P = paramsLiteral.P[:pCount]
 	params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
-	prng, _ := utils.NewKeyedPRNG([]byte{'b', 'y', 't', 'e'})
 
 	kgen := ckks.NewKeyGenerator(params)
-	sk := kgen.GenSecretKey()
+	sk, pk := kgen.GenKeyPair()
 	skOut := kgen.GenSecretKey()
 	swk := kgen.GenSwitchingKey(sk, skOut)
+
+	encryptor := ckks.NewEncryptor(params, pk)
 	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 	ksw := evaluator.GetKeySwitcher()
 
@@ -70,8 +77,10 @@ func BenchmarkKeySwitch(b *testing.B) {
 		}
 
 		testName := fmt.Sprintf("L-%v/l-%v/SP-%v", qCount, level+1, ksw.LevelSP[level]+1)
-		ctIn := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
-		ctOut := ckks.NewCiphertextRandom(prng, params, 1, level, params.DefaultScale())
+
+		ptxt := ckks.NewPlaintext(params, level, params.DefaultScale())
+		ctIn := encryptor.EncryptNew(ptxt)
+		ctOut := ckks.NewCiphertext(params, 1, level, params.DefaultScale())
 
 		b.Run(testName, func(b *testing.B) {
 			for i := 0; i < b.N; i++ {
