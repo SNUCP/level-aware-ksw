@@ -115,8 +115,9 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 			}
 
 			decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelSP+1)))
-			cost := (decompSize + 2) * (levelQ + levelSP + 2)
-
+			cost := (decompSize + 2) * (levelQ + levelSP + 2) * params.LogN() / 2
+			cost += (2*decompSize + levelQ + 3) * levelQ
+			cost += (2*decompSize + 3*levelQ + 3) * (levelSP + 1)
 			if cost < min_cost {
 				min_cost = cost
 				ks.LevelSP[levelQ] = levelSP

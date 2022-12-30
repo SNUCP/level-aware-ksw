@@ -12,16 +12,10 @@ import (
 var qpCount = 40
 var pCount = 1
 
-/*
 var levels = []int{
-	39 - 1, 38 - 1, 37 - 1, 36 - 1,
-	32 - 1, 28 - 1, 24 - 1, 20 - 1,
-	16 - 1, 12 - 1, 8 - 1, 4 - 1,
-}
-*/
-
-var levels = []int{
-	38 - 1, 39 - 1,
+	4 - 1, 8 - 1, 12 - 1, 16 - 1,
+	20 - 1, 24 - 1, 28 - 1, 32 - 1,
+	36 - 1, 37 - 1, 38 - 1, 39 - 1,
 }
 
 var paramsLiteral = ckks.ParametersLiteral{
@@ -70,8 +64,8 @@ func BenchmarkKeySwitch(b *testing.B) {
 	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 	ksw := evaluator.GetKeySwitcher()
 
-	for _, level := range levels {
-
+	//for _, level := range levels {
+	for level := 1; level <= params.MaxLevel(); level++ {
 		if level > params.MaxLevel() {
 			continue
 		}

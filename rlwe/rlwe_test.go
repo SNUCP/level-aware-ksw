@@ -38,8 +38,9 @@ var rlweTestParam = ParametersLiteral{
 		0xfffb5e0001, 0xfffb340001, 0xfffb1a0001, //0xfffb0e0001,
 	},
 	P: []uint64{
-		// 44 x 4
-		0xffff8a0001, 0xffff820001, 0xffff780001, //0xffff580001,
+		// 60
+		0x1000000000ce0001,
+		//0xffff8a0001, 0xffff820001, 0xffff780001, //0xffff580001,
 	},
 	RingType: ring.Standard,
 }
