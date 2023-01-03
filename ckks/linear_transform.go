@@ -118,8 +118,8 @@ type LinearTransform struct {
 func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots int, BSGSRatio float64) LinearTransform {
 	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logSlots
-	levelQ := level
-	levelSP := params.PCount() - 1
+	levelQ := params.QCount() - 1
+	levelP := params.PCount() - 1
 	var N1 int
 	if BSGSRatio == 0 {
 		N1 = 0
@@ -128,14 +128,14 @@ func NewLinearTransform(params Parameters, nonZeroDiags []int, level, logSlots i
 			if idx < 0 {
 				idx += slots
 			}
-			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelSP)
+			vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
 		}
 	} else if BSGSRatio > 0 {
 		N1 = FindBestBSGSSplit(nonZeroDiags, slots, BSGSRatio)
 		index, _, _ := BsgsIndex(nonZeroDiags, slots, N1)
 		for j := range index {
 			for _, i := range index[j] {
-				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelSP)
+				vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
 			}
 		}
 	} else {
@@ -254,15 +254,15 @@ func GenLinearTransform(encoder Encoder, value interface{}, level int, scale flo
 	dMat := interfaceMapToMapOfInterface(value)
 	vec := make(map[int]rlwe.PolyQP)
 	slots := 1 << logslots
-	levelQ := level
-	levelSP := params.PCount() - 1
+	levelQ := params.QCount() - 1
+	levelP := params.PCount() - 1
 	for i := range dMat {
 
 		idx := i
 		if idx < 0 {
 			idx += slots
 		}
-		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelSP)
+		vec[idx] = params.RingQP().NewPolyLvl(levelQ, levelP)
 		enc.Embed(dMat[i], logslots, scale, true, vec[idx])
 	}
 
@@ -299,7 +299,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 	//levelQ := level
 
 	levelQ := params.QCount() - 1
-	levelSP := params.PCount() - 1
+	levelP := params.PCount() - 1
 	for j := range index {
 
 		for _, i := range index[j] {
@@ -309,7 +309,7 @@ func GenLinearTransformBSGS(encoder Encoder, value interface{}, level int, scale
 			if !ok {
 				v = dMat[j+i-slots]
 			}
-			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelSP)
+			vec[j+i] = params.RingQP().NewPolyLvl(levelQ, levelP)
 			enc.Embed(utils.RotateSlice(v, -j), logSlots, scale, true, vec[j+i])
 		}
 	}
