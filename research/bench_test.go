@@ -2,15 +2,17 @@ package bench_test
 
 import (
 	"fmt"
+	"runtime"
 	"testing"
 
 	"github.com/tuneinsight/lattigo/v3/ckks"
+	"github.com/tuneinsight/lattigo/v3/ckks/advanced"
 	"github.com/tuneinsight/lattigo/v3/ring"
 	"github.com/tuneinsight/lattigo/v3/rlwe"
 )
 
 var qpCount = 40
-var pCount = 1
+var pCount = 4
 
 var levels = []int{
 	4 - 1, 8 - 1, 12 - 1, 16 - 1,
@@ -47,9 +49,6 @@ var paramsLiteral = ckks.ParametersLiteral{
 
 func BenchmarkKeySwitch(b *testing.B) {
 
-	defaultP := make([]uint64, len(paramsLiteral.P))
-	copy(defaultP, paramsLiteral.P)
-
 	qCount := qpCount - pCount
 	paramsLiteral.Q = paramsLiteral.Q[:qCount]
 	paramsLiteral.P = paramsLiteral.P[:pCount]
@@ -64,8 +63,7 @@ func BenchmarkKeySwitch(b *testing.B) {
 	evaluator := ckks.NewEvaluator(params, rlwe.EvaluationKey{})
 	ksw := evaluator.GetKeySwitcher()
 
-	//for _, level := range levels {
-	for level := 1; level <= params.MaxLevel(); level++ {
+	for _, level := range levels {
 		if level > params.MaxLevel() {
 			continue
 		}
@@ -82,4 +80,158 @@ func BenchmarkKeySwitch(b *testing.B) {
 			}
 		})
 	}
+
+	runtime.GC()
+}
+
+func BenchmarkCoeffToSlot(b *testing.B) {
+
+	qCount := qpCount - pCount
+	paramsLiteral.Q = paramsLiteral.Q[:qCount]
+	paramsLiteral.P = paramsLiteral.P[:pCount]
+	params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+
+	CoeffsToSlotsParametersLiteral := advanced.EncodingMatrixLiteral{
+		LogN:                params.LogN(),
+		LogSlots:            params.LogSlots(),
+		Scaling:             1.0 / float64(2*params.Slots()),
+		LinearTransformType: advanced.CoeffsToSlots,
+		LevelStart:          params.MaxLevel(),
+		BSGSRatio:           2.0,
+		BitReversed:         false,
+		ScalingFactor: [][]float64{
+
+			{params.QiFloat64(params.MaxLevel() - 3)},
+			{params.QiFloat64(params.MaxLevel() - 2)},
+			{params.QiFloat64(params.MaxLevel() - 1)},
+			{params.QiFloat64(params.MaxLevel() - 0)},
+		},
+	}
+
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	encoder := ckks.NewEncoder(params)
+	encryptor := ckks.NewEncryptor(params, sk)
+
+	// Generates the encoding matrices
+	CoeffsToSlotMatrices := advanced.NewHomomorphicEncodingMatrixFromLiteral(CoeffsToSlotsParametersLiteral, encoder)
+
+	// Gets the rotations indexes for CoeffsToSlots
+	rotations := CoeffsToSlotsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
+
+	// Generates the rotation keys
+	rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
+
+	// Creates an evaluator with the rotation keys
+	eval := advanced.NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
+
+	testName := fmt.Sprintf("BenchmarkCoeffToSlots: qCount:%v pCount:%v", params.QCount(), params.PCount())
+
+	ptxt := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+	ctIn := encryptor.EncryptNew(ptxt)
+
+	b.Run(testName, func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.CoeffsToSlotsNew(ctIn, CoeffsToSlotMatrices)
+		}
+	})
+
+	runtime.GC()
+}
+
+func BenchmarkEvalMod(b *testing.B) {
+
+	qCount := qpCount - pCount
+	paramsLiteral.Q = paramsLiteral.Q[:qCount]
+	paramsLiteral.P = paramsLiteral.P[:pCount]
+	params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+
+	evm := advanced.EvalModLiteral{
+		Q:             0x4000000120001,
+		LevelStart:    params.MaxLevel() - 4,
+		SineType:      advanced.Cos2,
+		MessageRatio:  256.0,
+		K:             325,
+		SineDeg:       255,
+		DoubleAngle:   4,
+		ArcSineDeg:    0,
+		ScalingFactor: 1 << 44,
+	}
+
+	EvalModPoly := advanced.NewEvalModPolyFromLiteral(evm)
+
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	rlk := kgen.GenRelinearizationKey(sk, 2)
+	encryptor := ckks.NewEncryptor(params, sk)
+	eval := advanced.NewEvaluator(params, rlwe.EvaluationKey{Rlk: rlk, Rtks: nil})
+
+	testName := fmt.Sprintf("BenchmarkEvalMod: qCount:%v pCount:%v", params.QCount(), params.PCount())
+
+	ptxt := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+	ctIn := encryptor.EncryptNew(ptxt)
+
+	b.Run(testName, func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+
+			eval.EvalModNew(ctIn, EvalModPoly)
+		}
+	})
+
+	runtime.GC()
+}
+
+func BenchmarkSlotToCoeff(b *testing.B) {
+
+	qCount := qpCount - pCount
+	paramsLiteral.Q = paramsLiteral.Q[:qCount]
+	paramsLiteral.P = paramsLiteral.P[:pCount]
+	params, _ := ckks.NewParametersFromLiteral(paramsLiteral)
+
+	SlotsToCoeffsParametersLiteral := advanced.EncodingMatrixLiteral{
+		LogN:                params.LogN(),
+		LogSlots:            params.LogSlots(),
+		Scaling:             1.0,
+		LinearTransformType: advanced.SlotsToCoeffs,
+		LevelStart:          params.MaxLevel() - 16,
+		BSGSRatio:           2.0,
+		BitReversed:         false,
+		ScalingFactor: [][]float64{
+			{params.QiFloat64(params.MaxLevel() - 19)},
+			{params.QiFloat64(params.MaxLevel() - 18)},
+			{params.QiFloat64(params.MaxLevel() - 17)},
+			{params.QiFloat64(params.MaxLevel() - 16)},
+		},
+	}
+
+	kgen := ckks.NewKeyGenerator(params)
+	sk := kgen.GenSecretKey()
+	encoder := ckks.NewEncoder(params)
+	encryptor := ckks.NewEncryptor(params, sk)
+
+	// Generates the encoding matrices
+	SlotsToCoeffsMatrix := advanced.NewHomomorphicEncodingMatrixFromLiteral(SlotsToCoeffsParametersLiteral, encoder)
+
+	// Gets the rotations indexes for SlotsToCoeffs
+	rotations := SlotsToCoeffsParametersLiteral.Rotations(params.LogN(), params.LogSlots())
+
+	// Generates the rotation keys
+	rotKey := kgen.GenRotationKeysForRotations(rotations, true, sk)
+
+	// Creates an evaluator with the rotation keys
+	eval := advanced.NewEvaluator(params, rlwe.EvaluationKey{Rlk: nil, Rtks: rotKey})
+
+	testName := fmt.Sprintf("BenchmarkSlotToCoeffs: qCount:%v pCount:%v", params.QCount(), params.PCount())
+
+	ptxt := ckks.NewPlaintext(params, params.MaxLevel(), params.DefaultScale())
+	ctReal := encryptor.EncryptNew(ptxt)
+	ctImag := encryptor.EncryptNew(ptxt)
+
+	b.Run(testName, func(b *testing.B) {
+		for i := 0; i < b.N; i++ {
+			eval.SlotsToCoeffsNew(ctReal, ctImag, SlotsToCoeffsMatrix)
+		}
+	})
+
+	runtime.GC()
 }
