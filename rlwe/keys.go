@@ -83,13 +83,14 @@ func NewSwitchingKey(params Parameters, levelQ, levelP int) *SwitchingKey {
 	swk.Value = make(map[int][][2]PolyQP)
 
 	// restrict max levelP by the half of levelQ
-	for i := 1; i <= params.Beta()/2; i++ {
-		if levelQ < (levelP+1)*(i-1)-1 {
-			panic("levelQ is too small than special modulus")
-		}
+	for i := 1; i <= params.Beta()/3; i++ {
 
 		levelSP := (levelP+1)*i - 1
 		qCount := levelQ + 1 - (levelP+1)*(i-1)
+
+		if i%2 == 1 && i >= 4 {
+			continue
+		}
 
 		decompSize := int(math.Ceil(float64(qCount) / float64(levelSP+1)))
 

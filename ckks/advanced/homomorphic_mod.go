@@ -150,7 +150,7 @@ func NewEvalModPolyFromLiteral(evm EvalModLiteral) EvalModPoly {
 		sinePoly.A = float64(-evm.K) / scFac
 		sinePoly.B = float64(evm.K) / scFac
 		sinePoly.Lead = true
-		sinePoly.BasisType = ckks.Chebyshev
+		sinePoly.Basis = ckks.ChebyshevBasis
 
 	} else if evm.SineType == Cos2 {
 		sinePoly = ckks.Approximate(cos2pi, -float64(evm.K)/scFac, float64(evm.K)/scFac, evm.SineDeg)

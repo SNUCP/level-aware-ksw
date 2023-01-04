@@ -108,10 +108,13 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 	for levelQ := 0; levelQ < qCount; levelQ++ {
 		min_cost := 987654321
 
-		for i := 1; i <= params.Beta()/2; i++ {
+		for i := 1; i <= params.Beta()/3; i++ {
 			levelSP := pCount*i - 1
 			if levelQ+levelSP+2 > qCount+pCount {
 				break
+			}
+			if i%2 == 1 && i >= 4 {
+				continue
 			}
 
 			decompSize := int(math.Ceil(float64(levelQ+1) / float64(levelSP+1)))
@@ -121,6 +124,9 @@ func NewKeySwitcher(params Parameters) *KeySwitcher {
 			if cost < min_cost {
 				min_cost = cost
 				ks.LevelSP[levelQ] = levelSP
+				if levelSP > 7 {
+					ks.LevelSP[levelQ] = levelSP
+				}
 			}
 		}
 	}

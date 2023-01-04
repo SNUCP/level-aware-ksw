@@ -96,8 +96,8 @@ type Evaluator interface {
 	PowerNew(ctIn *Ciphertext, degree int) (ctOut *Ciphertext)
 
 	// Polynomial evaluation
-	EvaluatePoly(input interface{}, pol *Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePoly(ctIn *Ciphertext, pol *Polynomial, targetScale float64) (ctOut *Ciphertext, err error)
+	EvaluatePolyVector(ctIn *Ciphertext, pols []*Polynomial, encoder Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *Ciphertext, err error)
 
 	// Inversion
 	InverseNew(ctIn *Ciphertext, steps int) (ctOut *Ciphertext)
@@ -250,7 +250,8 @@ func (eval *evaluator) checkBinary(op0, op1, opOut Operand, opOutMinDegree int) 
 	}
 
 	if opOut.Degree() < opOutMinDegree {
-		panic("cannot checkBinary: receiver operand degree is too small")
+		msg := fmt.Sprintf("opOut: %v opOutMin: %v", opOut.Degree(), opOutMinDegree)
+		panic("cannot checkBinary: receiver operand degree is too small" + msg)
 	}
 
 	for _, pol := range op0.El().Value {

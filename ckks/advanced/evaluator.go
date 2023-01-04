@@ -52,8 +52,9 @@ type Evaluator interface {
 	PowerOf2(ctIn *ckks.Ciphertext, logPow2 int, ctOut *ckks.Ciphertext)
 	Power(ctIn *ckks.Ciphertext, degree int, ctOut *ckks.Ciphertext)
 	PowerNew(ctIn *ckks.Ciphertext, degree int) (ctOut *ckks.Ciphertext)
-	EvaluatePoly(input interface{}, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
-	EvaluatePolyVector(input interface{}, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePoly(ctIn *ckks.Ciphertext, pol *ckks.Polynomial, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+	EvaluatePolyVector(ctIn *ckks.Ciphertext, pols []*ckks.Polynomial, encoder ckks.Encoder, slotIndex map[int][]int, targetScale float64) (ctOut *ckks.Ciphertext, err error)
+
 	InverseNew(ctIn *ckks.Ciphertext, steps int) (ctOut *ckks.Ciphertext)
 	LinearTransformNew(ctIn *ckks.Ciphertext, linearTransform interface{}) (ctOut []*ckks.Ciphertext)
 	LinearTransform(ctIn *ckks.Ciphertext, linearTransform interface{}, ctOut []*ckks.Ciphertext)
@@ -223,10 +224,10 @@ func (eval *evaluator) dft(ctIn *ckks.Ciphertext, plainVectors []ckks.LinearTran
 
 // EvalModNew applies a homomorphic mod Q on a vector scaled by Delta, scaled down to mod 1 :
 //
-//	1) Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
-//	2) Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
-//	3) Delta * (Delta/Q * m(X)) (x mod 1)
-//	4) Delta * (m(X)) (multiply back by Q/Delta)
+//  1. Delta * (Q/Delta * I(X) + m(X)) (Delta = scaling factor, I(X) integer poly, m(X) message)
+//  2. Delta * (I(X) + Delta/Q * m(X)) (divide by Q/Delta)
+//  3. Delta * (Delta/Q * m(X)) (x mod 1)
+//  4. Delta * (m(X)) (multiply back by Q/Delta)
 //
 // Since Q is not a power of two, but Delta is, then does an approximate division by the closest
 // power of two to Q instead. Hence, it assumes that the input plaintext is already scaled by
